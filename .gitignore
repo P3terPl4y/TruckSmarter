@@ -1,25 +1,23 @@
-.env
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
 *.so
 .Python
 env/
 venv/
 ENV/
-.venv
+*.log
 
 # Django
 *.log
-*.pot
-*.pyc
 db.sqlite3
 db.sqlite3-journal
 media/
 staticfiles/
+*.pot
+*.pyc
 
-# Environment variables
+# Environment
 .env
 .env.local
 .env.production
@@ -29,13 +27,10 @@ staticfiles/
 .idea/
 *.swp
 *.swo
-*~
 
 # OS
 .DS_Store
 Thumbs.db
 
 # Project specific
-vehicles/ad9fc283b4d49b0938ed7cdf3e81d19a.jpg
 vehicles/img.ico
-*.ico
