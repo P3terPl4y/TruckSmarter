@@ -54,7 +54,7 @@ def logout_view(request):
     return redirect('vehicles:list')
 class ProfileView(LoginRequiredMixin, UpdateView):
     model = User
-    form_class = ProfileForm  # <--- usar el formulario personalizado
+    form_class = ProfileForm
     template_name = 'users/profile.html'
     success_url = reverse_lazy('users:profile')
 
@@ -63,18 +63,27 @@ class ProfileView(LoginRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Obtener o crear perfil (por si acaso)
+        # Crear perfil si no existe
         profile, created = Profile.objects.get_or_create(user=self.request.user)
         context['profile'] = profile
-        # Si es comerciante/admin, mostrar sus vehículos
+        
+        # Mostrar vehículos si es comerciante o admin
         if self.request.user.role in ['seller', 'admin']:
             from vehicles.models import Vehicle
-            context['vehicles'] = Vehicle.objects.filter(created_by=self.request.user)
+            context['vehicles'] = Vehicle.objects.filter(
+                created_by=self.request.user,
+                is_active=True
+            ).select_related('brand')
+        
         return context
 
     def form_valid(self, form):
-        messages.success(self.request, 'Perfil actualizado correctamente.')
-        return super().form_valid(form)       
+        messages.success(self.request, '¡Perfil actualizado correctamente!')
+        return super().form_valid(form)
+    
+    def form_invalid(self, form):
+        messages.error(self.request, 'Error al actualizar el perfil. Revisa los campos.')
+        return super().form_invalid(form)      
 class ChangeRoleView(LoginRequiredMixin, UpdateView):
     model = User
     fields = []  # no hay campos, solo cambiamos el rol

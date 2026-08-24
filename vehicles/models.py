@@ -46,22 +46,19 @@ class Vehicle(models.Model):
         return f"{self.brand.name} {self.model} ({self.year})"
         
     def mark_as_sold(self, buyer):
+        """Marca el vehículo como vendido (con transacción)."""
         from sales.models import Sale
-        if self.sold:
-            raise ValueError("Este vehículo ya está vendido.")
-        if buyer == self.created_by:
-            raise ValueError("No puedes comprar tu propio vehículo.")
-        
-        sale = Sale.objects.create(
-            vehicle=self,
-            buyer=buyer,
-            seller=self.created_by,
-            price=self.price,
-            status='completed'
-        )
-        self.sold = True
-        self.save(update_fields=['sold'])
-        return sale
+        with transaction.atomic():
+            self.sold = True
+            self.is_active = False
+            self.save()
+            return Sale.objects.create(
+                vehicle=self,
+                buyer=buyer,
+                seller=self.created_by,
+                amount=self.price,
+                status='completed'
+            )
 class VehicleImage(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to='vehicles/')
