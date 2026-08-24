@@ -7,3 +7,6 @@ environ==1.0
 pillow==12.3.0
 psycopg2-binary==2.9.12
 sqlparse==0.6.0
+whitenoise
+django-storages  # opcional, si usas S3
+boto3            # opcional, si usas S3
