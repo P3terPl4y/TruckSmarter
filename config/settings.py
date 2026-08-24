@@ -74,7 +74,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 LOGIN_REDIRECT_URL = "vehicles:list"
-LOGIN_URL = "/accounts/login/"  # Asegurar que el login funcione
+LOGIN_URL = '/users/login/'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # Database
 DATABASES = {

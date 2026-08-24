@@ -1,24 +1,338 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Mi Perfil - TruckSmarter{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-8 mx-auto">
-            <div class="card">
-                <div class="card-header" style="background: var(--color-blue); color: white; border-radius: 16px 16px 0 0;">
-                    <h2 class="mb-0"><i class="bi bi-person-circle"></i> Mi Perfil</h2>
+<div class="container py-4">
+    <!-- Encabezado del perfil -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center justify-content-between flex-wrap">
+                <div>
+                    <h1 class="display-5 fw-bold" style="color: var(--color-blue-metallic);">
+                        <i class="bi bi-person-circle"></i> Mi Perfil
+                    </h1>
+                    <p class="text-muted">Gestiona tus datos personales y preferencias</p>
+                </div>
+                <div>
+                    <span class="badge bg-{% if user.role == 'admin' %}danger{% elif user.role == 'seller' %}success{% else %}secondary{% endif %} fs-6 p-2">
+                        <i class="bi bi-shield-check"></i> 
+                        {{ user.get_role_display }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- COLUMNA IZQUIERDA: Formulario de perfil -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header" style="background: var(--color-blue-metallic); color: white; border-radius: 12px 12px 0 0;">
+                    <h5 class="mb-0"><i class="bi bi-pencil-square"></i> Editar datos personales</h5>
                 </div>
                 <div class="card-body p-4">
-                    <form method="post">
+                    <form method="post" id="profile-form">
                         {% csrf_token %}
-                        {{ form.as_p }}
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save"></i> Actualizar datos
-                        </button>
+                        
+                        <!-- Datos del usuario -->
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="id_username" class="form-label fw-bold">Usuario</label>
+                                {{ form.username }}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_email" class="form-label fw-bold">Email</label>
+                                {{ form.email }}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_first_name" class="form-label fw-bold">Nombre</label>
+                                {{ form.first_name }}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_last_name" class="form-label fw-bold">Apellido</label>
+                                {{ form.last_name }}
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Datos del perfil (Profile) -->
+                        <h6 class="fw-bold"><i class="bi bi-info-circle"></i> Información de contacto</h6>
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <label for="id_phone" class="form-label">Teléfono</label>
+                                {{ form.phone }}
+                            </div>
+                            <div class="col-md-12">
+                                <label for="id_address" class="form-label">Dirección</label>
+                                {{ form.address }}
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Datos de pago -->
+                        <h6 class="fw-bold"><i class="bi bi-credit-card"></i> Datos de pago</h6>
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <label for="id_payment_email" class="form-label">Email de pago</label>
+                                {{ form.payment_email }}
+                                <small class="text-muted">Correo asociado a tu cuenta de pago (PayPal, Stripe, etc.)</small>
+                            </div>
+                            <div class="col-md-12">
+                                <label for="id_payment_phone" class="form-label">Teléfono de pago</label>
+                                {{ form.payment_phone }}
+                            </div>
+                            <div class="col-md-12">
+                                <label for="id_bank_account" class="form-label">Cuenta bancaria / PayPal</label>
+                                {{ form.bank_account }}
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg px-5">
+                                <i class="bi bi-save"></i> Guardar cambios
+                            </button>
+                        </div>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: Información adicional y acciones -->
+        <div class="col-lg-6">
+            <!-- Tarjeta de información del usuario -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header" style="background: var(--color-blue-metallic); color: white; border-radius: 12px 12px 0 0;">
+                    <h5 class="mb-0"><i class="bi bi-person-badge"></i> Información de cuenta</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-person-circle" style="font-size: 3rem; color: var(--color-blue-metallic);"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="mb-0">{{ user.get_full_name|default:user.username }}</h5>
+                            <p class="text-muted mb-0">{{ user.email }}</p>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <small class="text-muted d-block">Teléfono</small>
+                            <span>{{ profile.phone|default:"<span class='text-muted'>No especificado</span>" }}</span>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block">Rol</small>
+                            <span class="badge bg-{% if user.role == 'admin' %}danger{% elif user.role == 'seller' %}success{% else %}secondary{% endif %}">
+                                {{ user.get_role_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cambio de rol -->
+            {% if user.role == 'customer' %}
+            <div class="card shadow-sm mb-4 border-warning">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-arrow-up-circle" style="font-size: 2rem; color: var(--color-orange-metallic);"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-1">¿Quieres vender vehículos?</h6>
+                            <p class="text-muted small mb-2">Conviértete en comerciante y comienza a publicar tus vehículos.</p>
+                            <form action="{% url 'users:change_role' %}" method="post">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-warning btn-sm">
+                                    <i class="bi bi-rocket-takeoff"></i> Convertirme en comerciante
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Vehículos publicados (solo para comerciantes y admins) -->
+            {% if user.role == 'seller' or user.role == 'admin' %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header" style="background: var(--color-blue-metallic); color: white; border-radius: 12px 12px 0 0;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-truck"></i> Mis vehículos</h5>
+                        <a href="{% url 'vehicles:create' %}" class="btn btn-sm btn-light">
+                            <i class="bi bi-plus-circle"></i> Publicar
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if vehicles %}
+                        <div class="row g-3">
+                            {% for vehicle in vehicles %}
+                                <div class="col-md-6">
+                                    <div class="vehicle-card p-2 border rounded-3 hover-shadow">
+                                        <div class="d-flex align-items-center">
+                                            {% if vehicle.main_image %}
+                                                <img src="{{ vehicle.main_image.url }}" alt="{{ vehicle }}" 
+                                                     style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
+                                            {% else %}
+                                                <div style="width: 60px; height: 60px; background: #e9ecef; border-radius: 8px; 
+                                                     display: flex; align-items: center; justify-content: center;">
+                                                    <i class="bi bi-car-front text-secondary" style="font-size: 1.5rem;"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div class="ms-2 flex-grow-1">
+                                                <h6 class="mb-0 small">{{ vehicle.brand.name }} {{ vehicle.model }}</h6>
+                                                <span class="text-muted small">${{ vehicle.price }}</span>
+                                                {% if vehicle.sold %}
+                                                    <span class="badge bg-danger ms-1">Vendido</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{% url 'vehicles:update' vehicle.pk %}" class="btn btn-outline-primary">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                <a href="{% url 'vehicles:delete' vehicle.pk %}" class="btn btn-outline-danger">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center mb-0">Aún no has publicado vehículos.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Historial de compras -->
+            <div class="card shadow-sm">
+                <div class="card-header" style="background: var(--color-blue-metallic); color: white; border-radius: 12px 12px 0 0;">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Historial de compras</h5>
+                </div>
+                <div class="card-body">
+                    {% if user.purchases.all %}
+                        <div class="list-group list-group-flush">
+                            {% for sale in user.purchases.all|slice:":5" %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <div>
+                                        <span class="fw-bold">{{ sale.vehicle.brand.name }} {{ sale.vehicle.model }}</span>
+                                        <br>
+                                        <small class="text-muted">{{ sale.created_at|date:"d/m/Y" }}</small>
+                                    </div>
+                                    <span class="badge bg-{% if sale.status == 'completed' %}success{% else %}warning{% endif %}">
+                                        ${{ sale.amount }}
+                                    </span>
+                                </div>
+                            {% endfor %}
+                            {% if user.purchases.count > 5 %}
+                                <div class="text-center mt-2">
+                                    <a href="{% url 'sales:history' %}" class="btn btn-link btn-sm">Ver todas</a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center mb-0">No has realizado compras aún.</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilos específicos para el perfil */
+    .hover-shadow:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        transition: box-shadow 0.3s ease;
+    }
+
+    .vehicle-card {
+        transition: all 0.3s ease;
+        background: var(--bs-body-bg);
+    }
+
+    .vehicle-card:hover {
+        transform: translateY(-2px);
+        border-color: var(--color-blue-metallic) !important;
+    }
+
+    /* Estilos para el modo oscuro */
+    body.dark-mode .vehicle-card {
+        background: var(--color-dark-surface);
+        border-color: #3a3a4a !important;
+    }
+
+    body.dark-mode .vehicle-card:hover {
+        border-color: var(--color-blue-light) !important;
+    }
+
+    /* Mejoras en los campos del formulario */
+    .form-control:focus {
+        border-color: var(--color-blue-metallic);
+        box-shadow: 0 0 0 0.2rem rgba(26, 58, 92, 0.25);
+    }
+
+    body.dark-mode .form-control {
+        background-color: var(--color-dark-surface);
+        border-color: #3a3a4a;
+        color: var(--color-white);
+    }
+
+    body.dark-mode .form-control:focus {
+        border-color: var(--color-blue-light);
+        box-shadow: 0 0 0 0.2rem rgba(42, 90, 140, 0.25);
+    }
+
+    body.dark-mode .card {
+        background-color: var(--color-dark-surface);
+        border-color: #3a3a4a;
+    }
+
+    body.dark-mode .card-header {
+        background: var(--color-dark-surface) !important;
+        border-bottom-color: #3a3a4a;
+    }
+
+    body.dark-mode .list-group-item {
+        background-color: transparent;
+        border-color: #3a3a4a;
+        color: var(--color-white);
+    }
+
+    body.dark-mode .text-muted {
+        color: #a0a0b0 !important;
+    }
+
+    /* Badge de rol en el encabezado */
+    .badge.role-badge {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Mejoras de UX para el formulario
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('profile-form');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        
+        form.addEventListener('submit', function() {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Guardando...';
+        });
+    });
+</script>
 {% endblock %}

@@ -18,7 +18,6 @@ class VehicleModelTest(TestCase):
             password='testpass123',
             role='seller'
         )
-        Profile.objects.create(user=self.user)  # Crear perfil asociado
         self.vehicle = Vehicle.objects.create(
             brand=self.brand,
             model='Corolla',
@@ -49,7 +48,6 @@ class VehicleModelTest(TestCase):
             password='testpass123',
             role='customer'
         )
-        Profile.objects.create(user=buyer)
         
         sale = self.vehicle.mark_as_sold(buyer)
         
@@ -74,7 +72,6 @@ class VehicleListViewTest(TestCase):
             password='testpass123',
             role='seller'
         )
-        Profile.objects.create(user=self.user)
         self.vehicle = Vehicle.objects.create(
             brand=self.brand,
             model='Corolla',
@@ -124,14 +121,12 @@ class VehicleCreateViewTest(TestCase):
             password='testpass123',
             role='seller'
         )
-        Profile.objects.create(user=self.seller)
         self.customer = User.objects.create_user(
             username='customer',
             email='customer@test.com',
             password='testpass123',
             role='customer'
         )
-        Profile.objects.create(user=self.customer)
 
     def test_create_vehicle_seller(self):
         """Verifica que un vendedor pueda crear un vehículo."""
@@ -161,7 +156,7 @@ class VehicleCreateViewTest(TestCase):
     def test_create_vehicle_unauthenticated(self):
         """Verifica que usuarios no autenticados no puedan crear vehículos."""
         response = self.client.get(reverse('vehicles:create'))
-        self.assertRedirects(response, f'/accounts/login/?next={reverse("vehicles:create")}')
+        self.assertRedirects(response, f'/users/login/?next={reverse("vehicles:create")}')
 
 
 class VehicleUpdateViewTest(TestCase):
@@ -176,14 +171,14 @@ class VehicleUpdateViewTest(TestCase):
             password='testpass123',
             role='seller'
         )
-        Profile.objects.create(user=self.owner)
+        
         self.other_user = User.objects.create_user(
             username='other',
             email='other@test.com',
             password='testpass123',
             role='seller'
         )
-        Profile.objects.create(user=self.other_user)
+        
         self.admin_user = User.objects.create_superuser(
             username='admin',
             email='admin@test.com',
@@ -267,14 +262,14 @@ class VehicleDeleteViewTest(TestCase):
             password='testpass123',
             role='seller'
         )
-        Profile.objects.create(user=self.owner)
+       
         self.other_user = User.objects.create_user(
             username='other',
             email='other@test.com',
             password='testpass123',
             role='seller'
         )
-        Profile.objects.create(user=self.other_user)
+        
         self.vehicle = Vehicle.objects.create(
             brand=self.brand,
             model='Corolla',
@@ -290,12 +285,12 @@ class VehicleDeleteViewTest(TestCase):
         )
 
     def test_delete_vehicle_owner(self):
-        """Verifica que el propietario pueda eliminar su vehículo."""
+        """Verifica que el propietario pueda eliminar su vehículo (soft delete)."""
         self.client.force_login(self.owner)
         response = self.client.post(reverse('vehicles:delete', args=[self.vehicle.id]))
         self.assertEqual(response.status_code, 302)
         self.vehicle.refresh_from_db()
-        self.assertFalse(self.vehicle.is_active)  # Soft delete o eliminación lógica
+        self.assertFalse(self.vehicle.is_active)  # Verificar soft delete
 
     def test_delete_vehicle_other_user_forbidden(self):
         """Verifica que otro usuario NO pueda eliminar el vehículo."""

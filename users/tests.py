@@ -80,7 +80,7 @@ class LoginTest(TestCase):
             email='test@example.com',
             password='testpass123'
         )
-        Profile.objects.create(user=self.user)
+       
 
     def test_login_view(self):
         """Verifica que el login funcione correctamente."""
@@ -105,7 +105,7 @@ class ProfileViewTest(TestCase):
             password='testpass123',
             role='seller'
         )
-        Profile.objects.create(user=self.user)
+       
 
     def test_profile_view_authenticated(self):
         """Verifica que un usuario autenticado pueda ver su perfil."""
@@ -117,7 +117,7 @@ class ProfileViewTest(TestCase):
     def test_profile_view_unauthenticated(self):
         """Verifica que usuarios no autenticados sean redirigidos."""
         response = self.client.get(reverse('users:profile'))
-        self.assertRedirects(response, f'/accounts/login/?next={reverse("users:profile")}')
+        self.assertRedirects(response, f'/users/login/?next={reverse("users:profile")}')
 
     def test_profile_update(self):
         """Verifica que el perfil se pueda actualizar."""
@@ -149,14 +149,14 @@ class ChangeRoleViewTest(TestCase):
             password='testpass123',
             role='customer'
         )
-        Profile.objects.create(user=self.customer)
+        
         self.seller = User.objects.create_user(
             username='seller',
             email='seller@test.com',
             password='testpass123',
             role='seller'
         )
-        Profile.objects.create(user=self.seller)
+        
 
     def test_change_role_customer_to_seller(self):
         """Verifica que un cliente pueda convertirse en comerciante."""

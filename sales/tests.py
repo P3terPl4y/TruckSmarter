@@ -18,14 +18,14 @@ class SaleModelTest(TestCase):
             password='testpass123',
             role='seller'
         )
-        Profile.objects.create(user=self.seller)
+       
         self.buyer = User.objects.create_user(
             username='buyer',
             email='buyer@test.com',
             password='testpass123',
             role='customer'
         )
-        Profile.objects.create(user=self.buyer)
+       
         self.vehicle = Vehicle.objects.create(
             brand=self.brand,
             model='Corolla',
@@ -70,14 +70,14 @@ class PurchaseViewTest(TestCase):
             password='testpass123',
             role='seller'
         )
-        Profile.objects.create(user=self.seller)
+       
         self.buyer = User.objects.create_user(
             username='buyer',
             email='buyer@test.com',
             password='testpass123',
             role='customer'
         )
-        Profile.objects.create(user=self.buyer)
+        
         self.vehicle = Vehicle.objects.create(
             brand=self.brand,
             model='Corolla',
@@ -117,7 +117,7 @@ class PurchaseViewTest(TestCase):
     def test_purchase_vehicle_unauthenticated(self):
         """Verifica que usuarios no autenticados no puedan comprar."""
         response = self.client.post(reverse('sales:purchase', args=[self.vehicle.id]))
-        self.assertRedirects(response, f'/accounts/login/?next={reverse("sales:purchase", args=[self.vehicle.id])}')
+        self.assertRedirects(response, f'/users/login/?next={reverse("sales:purchase", args=[self.vehicle.id])}')
 
     def test_purchase_vehicle_already_sold(self):
         """Verifica que no se pueda comprar un vehículo ya vendido."""
@@ -140,14 +140,14 @@ class PurchaseHistoryTest(TestCase):
             password='testpass123',
             role='seller'
         )
-        Profile.objects.create(user=self.seller)
+        
         self.buyer = User.objects.create_user(
             username='buyer',
             email='buyer@test.com',
             password='testpass123',
             role='customer'
         )
-        Profile.objects.create(user=self.buyer)
+        
         self.vehicle = Vehicle.objects.create(
             brand=self.brand,
             model='Corolla',
@@ -179,4 +179,4 @@ class PurchaseHistoryTest(TestCase):
     def test_purchase_history_unauthenticated(self):
         """Verifica que usuarios no autenticados no puedan ver el historial."""
         response = self.client.get(reverse('sales:history'))
-        self.assertRedirects(response, f'/accounts/login/?next={reverse("sales:history")}')
+        self.assertRedirects(response, f'/users/login/?next={reverse("sales:history")}')

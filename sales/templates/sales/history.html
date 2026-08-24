@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>📋 Historial de Compras</h2>
+    {% if sales %}
+        <div class="row">
+            {% for sale in sales %}
+                <div class="col-md-6">
+                    <div class="card mb-3 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ sale.vehicle.brand.name }} {{ sale.vehicle.model }}</h5>
+                            <p><strong>Precio:</strong> ${{ sale.amount }}</p>
+                            <p><strong>Vendedor:</strong> {{ sale.seller.get_full_name|default:sale.seller.username }}</p>
+                            <p><strong>Fecha:</strong> {{ sale.created_at|date:"d/m/Y H:i" }}</p>
+                            <span class="badge bg-{% if sale.status == 'completed' %}success{% else %}warning{% endif %}">
+                                {{ sale.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted">No has realizado compras aún.</p>
+    {% endif %}
+</div>
+{% endblock %}
