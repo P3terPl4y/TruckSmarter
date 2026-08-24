@@ -15,7 +15,7 @@ env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env("SECRET_KEY", default="django-insecure-xxxxxxxxxxxxx")
+SECRET_KEY = env('SECRET_KEY')  # Si no existe, lanzará error
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -38,6 +38,8 @@ INSTALLED_APPS = [
     "users",
     "core",
     "sales",
+    "crispy_forms",          # <--- Agregar
+    "crispy_bootstrap5", 
 ]
 
 MIDDLEWARE = [
@@ -160,3 +162,7 @@ LOGGING = {
         },
     },
 }
+
+# Crispy-forms configuration
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"

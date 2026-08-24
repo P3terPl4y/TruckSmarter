@@ -1,43 +1,41 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Encuentra el auto de tus sueños en el mejor catálogo con precios competitivos y garantía.">
-    <title>TruckSmarter - Catálogo de Autos</title>
+    <title>TruckSmarter - {% block title %}Catálogo de Vehículos{% endblock %}</title>
     
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts (Inter) -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- CSS Personalizado -->
-    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Estilos personalizados -->
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     
-    <!-- Favicon -->
-    <link rel="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
+    {% block extra_css %}{% endblock %}
 </head>
-<body class="{% if request.COOKIES.theme == 'dark' %}dark-mode{% endif %}">
-    
-    <!-- NAVBAR -->
-    <nav class="navbar navbar-expand-lg sticky-top">
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
             <a class="navbar-brand" href="{% url 'vehicles:list' %}">
-                Truck<span>Smarter</span>
+                <i class="fas fa-truck"></i> TruckSmarter
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center">
+                <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'vehicles:list' %}">
                             <i class="fas fa-car"></i> Catálogo
                         </a>
                     </li>
+                    
+                    <!-- Si el usuario está autenticado -->
                     {% if user.is_authenticated %}
+                        <!-- Si es comerciante o admin -->
                         {% if user.role == 'seller' or user.role == 'admin' %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'vehicles:create' %}">
@@ -51,10 +49,10 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <form action="{% url 'users:logout' %}" method="post" style="display:inline;">
+                            <form action="{% url 'users:logout' %}" method="post" style="display: inline;">
                                 {% csrf_token %}
-                                <button type="submit" class="nav-link" style="background:none;border:none;color:rgba(255,255,255,0.8);cursor:pointer;">
-                                    <i class="fas fa-sign-out-alt"></i> Salir
+                                <button type="submit" class="nav-link btn btn-link" style="border: none; background: none;">
+                                    <i class="fas fa-sign-out-alt"></i> Cerrar sesión
                                 </button>
                             </form>
                         </li>
@@ -70,6 +68,8 @@
                             </a>
                         </li>
                     {% endif %}
+                    
+                    <!-- Botón modo oscuro -->
                     <li class="nav-item">
                         <button class="theme-toggle" id="themeToggle" aria-label="Cambiar tema">
                             <i class="fas fa-moon"></i>
@@ -84,30 +84,29 @@
     {% if messages %}
     <div class="container mt-3">
         {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
-            <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
             {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
-    <!-- CONTENIDO PRINCIPAL -->
+    <!-- Contenido principal -->
     <main>
         {% block content %}{% endblock %}
     </main>
 
-    <!-- FOOTER -->
-    <footer class="mt-5 py-4" style="background: var(--color-blue-dark); color: rgba(255,255,255,0.7);">
+    <!-- Footer -->
+    <footer class="footer mt-auto py-3 bg-light">
         <div class="container text-center">
-            <p class="mb-0">&copy; 2026 TruckSmarter. Todos los derechos reservados.</p>
-            <small class="d-block mt-1">Tu catálogo de autos de confianza.</small>
+            <span class="text-muted">© 2026 TruckSmarter - Todos los derechos reservados</span>
         </div>
     </footer>
 
-    <!-- SCRIPTS -->
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
