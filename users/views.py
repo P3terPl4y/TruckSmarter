@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.mixins import (LoginRequiredMixin,
-                                        PermissionRequiredMixin)
+                                        UserPassesTestMixin)
 from django.contrib.auth.views import LoginView, LogoutView
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -26,14 +26,14 @@ def register(request):
     return render(request, "users/register.html", {"form": form})
 
 
-class UserListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+class UserListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = User
     template_name = "users/admin/user_list.html"
     context_object_name = "users"
     permission_required = "users.can_manage_users"
 
 
-class UserUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+class UserUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = User
     form_class = UserAdminForm
     template_name = "users/admin/user_form.html"
