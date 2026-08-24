@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container">
+    <h1>Catálogo de Autos</h1>
+    <div class="row">
+        {% for vehicle in vehicles %}
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <img src="{{ vehicle.main_image.url }}" class="card-img-top" alt="{{ vehicle }}">
+                <div class="card-body">
+                    <h5 class="card-title">{{ vehicle.brand.name }} {{ vehicle.model }}</h5>
+                    <p class="card-text">Año: {{ vehicle.year }} - ${{ vehicle.price }}</p>
+                    <a href="{% url 'vehicles:detail' vehicle.pk %}" class="btn btn-primary">Ver detalles</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p>No hay vehículos disponibles.</p>
+        {% endfor %}
+    </div>
+    {% include 'includes/pagination.html' %}
+</div>
+{% endblock %}
