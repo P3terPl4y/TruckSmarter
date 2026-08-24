@@ -1,24 +1,27 @@
-<!-- templates/base.html -->
 <!DOCTYPE html>
-<html lang="es" data-theme="light">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}TruckSmarter - Catálogo de Autos{% endblock %}</title>
+    <meta name="description" content="Encuentra el auto de tus sueños en el mejor catálogo con precios competitivos y garantía.">
+    <title>TruckSmarter - Catálogo de Autos</title>
     
-    <!-- Bootstrap 5 CSS -->
+    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Estilos personalizados -->
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- CSS Personalizado -->
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
-    {% block extra_css %}{% endblock %}
+    
+    <!-- Favicon -->
+    <link rel="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
 </head>
-<body>
-    <!-- Navbar -->
+<body class="{% if request.COOKIES.theme == 'dark' %}dark-mode{% endif %}">
+    
+    <!-- NAVBAR -->
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
             <a class="navbar-brand" href="{% url 'vehicles:list' %}">
@@ -29,48 +32,47 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'vehicles:list' %}">
+                            <i class="fas fa-car"></i> Catálogo
+                        </a>
+                    </li>
                     {% if user.is_authenticated %}
-                        <li class="nav-item">
-                            <span class="nav-link">
-                                <i class="bi bi-person-circle"></i> {{ user.username }}
-                            </span>
-                        </li>
                         {% if user.role == 'seller' or user.role == 'admin' %}
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'vehicles:create' %}">
-                                    <i class="bi bi-plus-circle"></i> Publicar
-                                </a>
-                            </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'vehicles:create' %}">
+                                <i class="fas fa-plus-circle"></i> Publicar
+                            </a>
+                        </li>
                         {% endif %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'users:profile' %}">
-                                <i class="bi bi-gear"></i> Perfil
+                                <i class="fas fa-user"></i> {{ user.username }}
                             </a>
                         </li>
                         <li class="nav-item">
-                            <form action="{% url 'users:logout' %}" method="post" style="display: inline;">
+                            <form action="{% url 'users:logout' %}" method="post" style="display:inline;">
                                 {% csrf_token %}
-                                <button type="submit" class="nav-link" style="background: none; border: none;">
-                                    <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+                                <button type="submit" class="nav-link" style="background:none;border:none;color:rgba(255,255,255,0.8);cursor:pointer;">
+                                    <i class="fas fa-sign-out-alt"></i> Salir
                                 </button>
                             </form>
                         </li>
                     {% else %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'users:login' %}">
-                                <i class="bi bi-box-arrow-in-right"></i> Iniciar sesión
+                                <i class="fas fa-sign-in-alt"></i> Iniciar sesión
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'users:register' %}">
-                                <i class="bi bi-person-plus"></i> Registrarse
+                                <i class="fas fa-user-plus"></i> Registrarse
                             </a>
                         </li>
                     {% endif %}
-                    <!-- Botón modo oscuro -->
                     <li class="nav-item">
-                        <button id="themeToggle" class="nav-link" style="background: none; border: none; cursor: pointer;">
-                            <i class="bi bi-sun-fill"></i>
+                        <button class="theme-toggle" id="themeToggle" aria-label="Cambiar tema">
+                            <i class="fas fa-moon"></i>
                         </button>
                     </li>
                 </ul>
@@ -80,56 +82,32 @@
 
     <!-- Mensajes -->
     {% if messages %}
-        <div class="container mt-3">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            {% endfor %}
+    <div class="container mt-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+            <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
+        {% endfor %}
+    </div>
     {% endif %}
 
-    <!-- Contenido principal -->
-    <main class="py-4">
+    <!-- CONTENIDO PRINCIPAL -->
+    <main>
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Footer -->
-    <footer class="footer mt-auto py-3" style="background: var(--bg-secondary); border-top: 2px solid var(--color-blue);">
+    <!-- FOOTER -->
+    <footer class="mt-5 py-4" style="background: var(--color-blue-dark); color: rgba(255,255,255,0.7);">
         <div class="container text-center">
-            <span style="color: var(--text-secondary);">
-                &copy; 2026 TruckSmarter - Todos los derechos reservados
-            </span>
+            <p class="mb-0">&copy; 2026 TruckSmarter. Todos los derechos reservados.</p>
+            <small class="d-block mt-1">Tu catálogo de autos de confianza.</small>
         </div>
     </footer>
 
-    <!-- Bootstrap JS -->
+    <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- JavaScript personalizado -->
     <script src="{% static 'js/main.js' %}"></script>
-    {% block extra_js %}{% endblock %}
-    <script>
-    // Modo oscuro
-const themeToggle = document.getElementById('themeToggle');
-const body = document.body;
-
-// Verificar preferencia guardada
-if (localStorage.getItem('theme') === 'dark') {
-    body.classList.add('dark-mode');
-    themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
-}
-
-themeToggle.addEventListener('click', () => {
-    body.classList.toggle('dark-mode');
-    if (body.classList.contains('dark-mode')) {
-        localStorage.setItem('theme', 'dark');
-        themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
-    } else {
-        localStorage.setItem('theme', 'light');
-        themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
-    }
-});
-    </script>
 </body>
 </html>

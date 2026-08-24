@@ -1,50 +1,83 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
-<div class="container">
+<div class="container py-4">
+    
+    <!-- HERO / TÍTULO -->
     <div class="row mb-4">
-        <div class="col">
-            <h1 class="display-4" style="color: var(--color-blue); font-weight: 700;">
-                <i class="bi bi-car-front"></i> Catálogo de Vehículos
+        <div class="col-12 text-center">
+            <h1 class="display-4 fw-bold" style="color: var(--color-blue-metallic);">
+                <i class="fas fa-car-side text-orange me-2"></i>Encuentra tu auto ideal
             </h1>
+            <p class="lead text-muted">Explora nuestro catálogo de vehículos nuevos y usados con los mejores precios.</p>
         </div>
     </div>
-    
-    <div class="row">
+
+    <!-- FILTROS -->
+    <div class="filters-section">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Marca</label>
+                <input type="text" name="brand" class="form-control" placeholder="Ej. Toyota" value="{{ request.GET.brand }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Precio mínimo</label>
+                <input type="number" name="min_price" class="form-control" placeholder="0" value="{{ request.GET.min_price }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Precio máximo</label>
+                <input type="number" name="max_price" class="form-control" placeholder="100000" value="{{ request.GET.max_price }}">
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary-custom w-100">
+                    <i class="fas fa-search me-1"></i> Buscar
+                </button>
+                <a href="{% url 'vehicles:list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-undo"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- GRID DE VEHÍCULOS -->
+    <div class="row g-4">
         {% for vehicle in vehicles %}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
+        <div class="col-md-6 col-lg-4 col-xl-3">
+            <div class="vehicle-card">
+                {% if vehicle.sold %}
+                <span class="badge-sold">VENDIDO</span>
+                {% endif %}
+                <a href="{% url 'vehicles:detail' vehicle.pk %}" class="text-decoration-none">
                     {% if vehicle.main_image %}
-                        <img src="{{ vehicle.main_image.url }}" class="card-img-top" alt="{{ vehicle }}">
+                    <img src="{{ vehicle.main_image.url }}" class="card-img-top" alt="{{ vehicle }}">
                     {% else %}
-                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
-                            <i class="bi bi-car-front" style="font-size: 3rem; color: var(--text-muted);"></i>
-                        </div>
+                    <img src="{% static 'img/no-image.png' %}" class="card-img-top" alt="Sin imagen">
                     {% endif %}
                     <div class="card-body">
-                        <h5 class="card-title">{{ vehicle.brand.name }} {{ vehicle.model }}</h5>
-                        <p class="card-text">
-                            <strong>Año:</strong> {{ vehicle.year }}<br>
-                            <strong>Precio:</strong> <span style="color: var(--color-orange); font-weight: 700;">${{ vehicle.price }}</span>
-                        </p>
-                        {% if vehicle.sold %}
-                            <span class="badge badge-danger">VENDIDO</span>
-                        {% endif %}
+                        <h5 class="card-title text-dark">{{ vehicle.brand.name }} {{ vehicle.model }}</h5>
+                        <p class="price">${{ vehicle.price|floatformat:0 }}</p>
+                        <div class="specs">
+                            <span><i class="far fa-calendar-alt me-1"></i>{{ vehicle.year }}</span>
+                            <span><i class="fas fa-road me-1"></i>{{ vehicle.mileage|floatformat:0 }} km</span>
+                            <span><i class="fas fa-cog me-1"></i>{{ vehicle.get_transmission_display }}</span>
+                        </div>
+                        <div class="mt-3">
+                            <span class="badge bg-light text-dark px-3 py-2">{{ vehicle.get_status_display }}</span>
+                        </div>
                     </div>
-                    <div class="card-footer bg-transparent border-top-0">
-                        <a href="{% url 'vehicles:detail' vehicle.pk %}" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-eye"></i> Ver detalles
-                        </a>
-                    </div>
-                </div>
+                </a>
             </div>
+        </div>
         {% empty %}
-            <div class="col-12 text-center">
-                <p class="text-muted">No hay vehículos disponibles en este momento.</p>
-            </div>
+        <div class="col-12 text-center py-5">
+            <i class="fas fa-car fa-3x text-muted mb-3"></i>
+            <p class="lead">No hay vehículos disponibles en este momento.</p>
+        </div>
         {% endfor %}
     </div>
-    
+
+    <!-- PAGINACIÓN -->
     {% include 'includes/pagination.html' %}
 </div>
 {% endblock %}

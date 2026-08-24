@@ -2,74 +2,120 @@
 {% load static %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-6">
-            <!-- Imagen principal -->
-            {% if vehicle.main_image %}
-                <img src="{{ vehicle.main_image.url }}" class="img-fluid rounded" alt="{{ vehicle }}">
-            {% else %}
-                <img src="{% static 'img/no-image.png' %}" class="img-fluid rounded" alt="Sin imagen">
+<div class="container py-4">
+    <div class="row g-4">
+        <!-- IMAGEN -->
+        <div class="col-lg-6">
+            <div class="vehicle-detail-image">
+                {% if vehicle.main_image %}
+                <img src="{{ vehicle.main_image.url }}" class="img-fluid" alt="{{ vehicle }}">
+                {% else %}
+                <img src="{% static 'img/no-image.png' %}" class="img-fluid" alt="Sin imagen">
+                {% endif %}
+            </div>
+            {% if vehicle.images.all %}
+            <div class="row g-2 mt-3">
+                {% for img in vehicle.images.all|slice:":4" %}
+                <div class="col-3">
+                    <img src="{{ img.image.url }}" class="img-fluid rounded-3" style="height:80px;object-fit:cover;cursor:pointer;" 
+                         onclick="document.querySelector('.vehicle-detail-image img').src=this.src">
+                </div>
+                {% endfor %}
+            </div>
             {% endif %}
         </div>
-        <div class="col-md-6">
-            <h1 class="display-6">{{ vehicle.brand.name }} {{ vehicle.model }}</h1>
+
+        <!-- INFORMACIÓN -->
+        <div class="col-lg-6">
+            <h1 class="vehicle-detail-title">{{ vehicle.brand.name }} {{ vehicle.model }}</h1>
             <p class="text-muted">{{ vehicle.year }}</p>
-            <p class="h3 text-orange fw-bold">${{ vehicle.price }}</p>
-            <hr>
-            <p><strong>Kilometraje:</strong> {{ vehicle.mileage }} km</p>
-            <p><strong>Transmisión:</strong> {{ vehicle.get_transmission_display }}</p>
-            <p><strong>Combustible:</strong> {{ vehicle.get_fuel_type_display }}</p>
-            <p><strong>Estado:</strong> {{ vehicle.get_status_display }}</p>
-            <p><strong>Publicado por:</strong> {{ vehicle.created_by.get_full_name|default:vehicle.created_by.username }}</p>
-            <p><strong>Email:</strong> {{ vehicle.created_by.email }}</p>
+            <p class="vehicle-detail-price">${{ vehicle.price|floatformat:0 }}</p>
             
-            {% if vehicle.sold %}
-                <span class="badge bg-danger fs-5">VENDIDO</span>
-            {% else %}
-                <!-- Botón de compra: solo si el usuario está autenticado, no es el creador y no está vendido -->
-                {% if user.is_authenticated and user != vehicle.created_by %}
-                    <button type="button" class="btn btn-orange btn-lg mt-3" data-bs-toggle="modal" data-bs-target="#purchaseModal">
-                        <i class="fas fa-shopping-cart"></i> Comprar este vehículo
+            <div class="vehicle-detail-specs">
+                <div class="spec-item">
+                    <small class="text-muted d-block">Kilometraje</small>
+                    <strong>{{ vehicle.mileage|floatformat:0 }} km</strong>
+                </div>
+                <div class="spec-item">
+                    <small class="text-muted d-block">Transmisión</small>
+                    <strong>{{ vehicle.get_transmission_display }}</strong>
+                </div>
+                <div class="spec-item">
+                    <small class="text-muted d-block">Combustible</small>
+                    <strong>{{ vehicle.get_fuel_type_display }}</strong>
+                </div>
+                <div class="spec-item">
+                    <small class="text-muted d-block">Estado</small>
+                    <strong>{{ vehicle.get_status_display }}</strong>
+                </div>
+            </div>
+
+            <hr>
+            <h5><i class="fas fa-user-circle me-2"></i>Vendedor</h5>
+            <p><strong>{{ vehicle.created_by.get_full_name|default:vehicle.created_by.username }}</strong><br>
+            <i class="fas fa-envelope me-1"></i> {{ vehicle.created_by.email }}</p>
+
+            <!-- BOTÓN DE COMPRA -->
+            <div class="mt-4">
+                {% if vehicle.sold %}
+                    <button class="btn btn-secondary btn-lg w-100" disabled>
+                        <i class="fas fa-check-circle me-2"></i> VENDIDO
+                    </button>
+                {% elif not user.is_authenticated %}
+                    <a href="{% url 'users:login' %}?next={{ request.path }}" class="btn btn-orange btn-lg w-100">
+                        <i class="fas fa-sign-in-alt me-2"></i> Iniciar sesión para comprar
+                    </a>
+                {% elif user == vehicle.created_by %}
+                    <button class="btn btn-secondary btn-lg w-100" disabled>
+                        <i class="fas fa-user me-2"></i> Este es tu vehículo
+                    </button>
+                {% else %}
+                    <button type="button" class="btn btn-orange btn-lg w-100" data-bs-toggle="modal" data-bs-target="#purchaseModal">
+                        <i class="fas fa-shopping-cart me-2"></i> Comprar ahora
                     </button>
                 {% endif %}
-            {% endif %}
+            </div>
         </div>
     </div>
-    <div class="row mt-4">
+
+    <!-- DESCRIPCIÓN -->
+    <div class="row mt-5">
         <div class="col-12">
-            <h4>Descripción</h4>
-            <p>{{ vehicle.description|linebreaks }}</p>
+            <h4><i class="fas fa-align-left me-2"></i>Descripción</h4>
+            <p>{{ vehicle.description|linebreaks|default:"Sin descripción." }}</p>
         </div>
     </div>
 </div>
 
-<!-- Modal de compra (solo si el vehículo no está vendido) -->
+<!-- MODAL DE COMPRA -->
 {% if not vehicle.sold and user.is_authenticated and user != vehicle.created_by %}
-<div class="modal fade" id="purchaseModal" tabindex="-1" aria-labelledby="purchaseModalLabel" aria-hidden="true">
+<div class="modal fade" id="purchaseModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="post" action="{% url 'sales:purchase' vehicle.id %}">
                 {% csrf_token %}
                 <div class="modal-header">
-                    <h5 class="modal-title" id="purchaseModalLabel">Confirmar compra</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title"><i class="fas fa-check-circle text-success me-2"></i>Confirmar compra</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <h4>{{ vehicle.brand.name }} {{ vehicle.model }}</h4>
-                    <p><strong>Precio:</strong> ${{ vehicle.price }}</p>
+                    <p class="vehicle-detail-price">${{ vehicle.price|floatformat:0 }}</p>
                     <hr>
-                    <h5>Datos del vendedor</h5>
-                    <p><strong>Nombre:</strong> {{ vehicle.created_by.get_full_name|default:vehicle.created_by.username }}</p>
-                    <p><strong>Email:</strong> {{ vehicle.created_by.email }}</p>
-                    <p><strong>Teléfono:</strong> {{ vehicle.created_by.profile.phone|default:"No especificado" }}</p>
-                    <p><strong>Dirección:</strong> {{ vehicle.created_by.profile.address|default:"No especificada" }}</p>
-                    <hr>
-                    <p class="text-muted">Al confirmar, aceptas la compra y te comprometes a pagar al vendedor.</p>
+                    <h6><i class="fas fa-user me-2"></i>Datos del vendedor</h6>
+                    <p><strong>{{ vehicle.created_by.get_full_name|default:vehicle.created_by.username }}</strong><br>
+                    <i class="fas fa-envelope me-1"></i> {{ vehicle.created_by.email }}<br>
+                    {% if vehicle.created_by.profile.phone %}
+                    <i class="fas fa-phone me-1"></i> {{ vehicle.created_by.profile.phone }}
+                    {% endif %}</p>
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Al confirmar, te comprometes a pagar el monto al vendedor.
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-success">Confirmar compra</button>
+                    <button type="submit" class="btn btn-orange">Confirmar compra</button>
                 </div>
             </form>
         </div>
