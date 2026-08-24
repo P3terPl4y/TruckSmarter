@@ -3,7 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404
 from .models import Vehicle
-from .froms import VehicleForm  # crea un ModelForm
+from .forms import VehicleForm  # crea un ModelForm
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.views.generic import UpdateView, DeleteView
