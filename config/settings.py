@@ -144,3 +144,19 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
     X_FRAME_OPTIONS = 'DENY'
 """
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'sales': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
