@@ -1,0 +1,254 @@
+/* static/css/style.css */
+
+/* ===== Variables y paleta de colores ===== */
+:root {
+    /* Colores principales */
+    --color-white: #f8f9fa;
+    --color-white-dark: #e9ecef;
+    --color-blue: #2c3e7a;
+    --color-blue-dark: #1a2a5c;
+    --color-blue-light: #4a6fa5;
+    --color-orange: #e67e22;
+    --color-orange-hover: #d35400;
+    --color-orange-light: #f39c12;
+    
+    /* Fondo y texto */
+    --bg-primary: var(--color-white);
+    --bg-secondary: #ffffff;
+    --text-primary: #1a1a2e;
+    --text-secondary: #4a4a6a;
+    --text-muted: #6c757d;
+    
+    /* Bordes y sombras */
+    --border-color: #d1d5db;
+    --shadow-color: rgba(44, 62, 122, 0.15);
+    --shadow-hover: rgba(44, 62, 122, 0.25);
+    
+    /* Transiciones */
+    --transition-speed: 0.3s;
+    --transition-ease: ease-in-out;
+}
+
+/* ===== Modo Oscuro ===== */
+[data-theme="dark"] {
+    --bg-primary: #12121e;
+    --bg-secondary: #1a1a2e;
+    --text-primary: #e9ecef;
+    --text-secondary: #b0b0c8;
+    --text-muted: #8a8aa8;
+    --border-color: #2a2a4a;
+    --shadow-color: rgba(0, 0, 0, 0.4);
+    --shadow-hover: rgba(0, 0, 0, 0.6);
+}
+
+/* ===== Estilos Globales ===== */
+* {
+    transition: background-color var(--transition-speed) var(--transition-ease),
+                color var(--transition-speed) var(--transition-ease),
+                border-color var(--transition-speed) var(--transition-ease),
+                box-shadow var(--transition-speed) var(--transition-ease);
+}
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    transition: background-color var(--transition-speed) var(--transition-ease),
+                color var(--transition-speed) var(--transition-ease);
+}
+
+/* ===== Navbar ===== */
+.navbar {
+    background: var(--bg-secondary) !important;
+    border-bottom: 2px solid var(--color-blue);
+    box-shadow: 0 2px 20px var(--shadow-color);
+    transition: all var(--transition-speed) var(--transition-ease);
+}
+
+.navbar-brand {
+    font-weight: 700;
+    color: var(--color-blue) !important;
+    font-size: 1.5rem;
+    letter-spacing: -0.5px;
+}
+
+.navbar-brand span {
+    color: var(--color-orange);
+}
+
+.nav-link {
+    color: var(--text-secondary) !important;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    transition: all var(--transition-speed) var(--transition-ease);
+}
+
+.nav-link:hover {
+    color: var(--color-blue) !important;
+    background-color: rgba(44, 62, 122, 0.08);
+}
+
+.nav-link.active {
+    color: var(--color-blue) !important;
+    background-color: rgba(44, 62, 122, 0.12);
+}
+
+/* ===== Botones ===== */
+.btn-primary {
+    background: var(--color-blue);
+    border-color: var(--color-blue);
+    color: white;
+    font-weight: 600;
+    padding: 0.6rem 1.5rem;
+    border-radius: 50px;
+    transition: all var(--transition-speed) var(--transition-ease);
+}
+
+.btn-primary:hover {
+    background: var(--color-blue-dark);
+    border-color: var(--color-blue-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px var(--shadow-hover);
+}
+
+.btn-success {
+    background: var(--color-orange);
+    border-color: var(--color-orange);
+    color: white;
+    font-weight: 600;
+    padding: 0.6rem 1.5rem;
+    border-radius: 50px;
+    transition: all var(--transition-speed) var(--transition-ease);
+}
+
+.btn-success:hover {
+    background: var(--color-orange-hover);
+    border-color: var(--color-orange-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(230, 126, 34, 0.4);
+}
+
+.btn-outline-primary {
+    color: var(--color-blue);
+    border-color: var(--color-blue);
+    border-radius: 50px;
+    transition: all var(--transition-speed) var(--transition-ease);
+}
+
+.btn-outline-primary:hover {
+    background: var(--color-blue);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px var(--shadow-hover);
+}
+
+/* ===== Tarjetas (Cards) ===== */
+.card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px var(--shadow-color);
+    transition: all var(--transition-speed) var(--transition-ease);
+    overflow: hidden;
+}
+
+.card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 40px var(--shadow-hover);
+}
+
+.card-img-top {
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    object-fit: cover;
+    height: 200px;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.card-title {
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 1.25rem;
+}
+
+.card-text {
+    color: var(--text-secondary);
+}
+
+/* ===== Formularios ===== */
+.form-control {
+    background: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    transition: all var(--transition-speed) var(--transition-ease);
+}
+
+.form-control:focus {
+    border-color: var(--color-blue);
+    box-shadow: 0 0 0 4px rgba(44, 62, 122, 0.15);
+    background: var(--bg-secondary);
+}
+
+/* ===== Modales ===== */
+.modal-content {
+    background: var(--bg-secondary);
+    border-radius: 20px;
+    border: none;
+    box-shadow: 0 20px 60px var(--shadow-hover);
+}
+
+.modal-header {
+    border-bottom: 2px solid var(--border-color);
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    border-top: 2px solid var(--border-color);
+    padding: 1.5rem;
+}
+
+/* ===== Badges ===== */
+.badge {
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-weight: 600;
+}
+
+.badge-danger {
+    background: #e74c3c;
+    color: white;
+}
+
+.badge-success {
+    background: var(--color-orange);
+    color: white;
+}
+
+/* ===== Scrollbar personalizada ===== */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-blue);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-blue-dark);
+}
+
+/* ===== Modo oscuro: ajustes de imágenes ===== */
+[data-theme="dark"] .card-img-top {
+    filter: brightness(0.85) contrast(1.1);
+}
