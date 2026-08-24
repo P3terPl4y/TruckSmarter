@@ -4,13 +4,16 @@ from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404
 from .models import Vehicle
 from .froms import VehicleForm  # crea un ModelForm
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.exceptions import PermissionDenied
+from django.views.generic import UpdateView, DeleteView
 
 class VehicleListView(ListView):
     model = Vehicle
     template_name = 'vehicles/list.html'
     context_object_name = 'vehicles'
     paginate_by = 12
-
+    ordering = ['-created_at']
     def get_queryset(self):
         qs = super().get_queryset().filter(is_active=True)
         # Aplicar filtros desde GET
@@ -30,26 +33,54 @@ class VehicleDetailView(DetailView):
     model = Vehicle
     template_name = 'vehicles/detail.html'
 
-class VehicleCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
+
+class VehicleCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Vehicle
     form_class = VehicleForm
     template_name = 'vehicles/form.html'
-    permission_required = 'vehicles.add_vehicle'
     success_url = reverse_lazy('vehicles:list')
+
+    def test_func(self):
+        user = self.request.user
+        # Permitir solo a comerciantes y administradores
+        return user.is_authenticated and user.role in ['seller', 'admin']
+
+    def handle_no_permission(self):
+        raise PermissionDenied("Solo comerciantes y administradores pueden publicar vehículos.")
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
         return super().form_valid(form)
 
-class VehicleUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+class VehicleUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Vehicle
     form_class = VehicleForm
     template_name = 'vehicles/form.html'
-    permission_required = 'vehicles.change_vehicle'
     success_url = reverse_lazy('vehicles:list')
 
-class VehicleDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
+    def test_func(self):
+        vehicle = self.get_object()
+        user = self.request.user
+        # Admin o superusuario pueden editar cualquier vehículo
+        if user.is_superuser or user.role == 'admin':
+            return True
+        # Comerciante solo puede editar los suyos
+        return vehicle.created_by == user
+
+    def handle_no_permission(self):
+        raise PermissionDenied("No tienes permiso para editar este vehículo.")
+
+class VehicleDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = Vehicle
-    permission_required = 'vehicles.delete_vehicle'
     success_url = reverse_lazy('vehicles:list')
     template_name = 'vehicles/confirm_delete.html'
+
+    def test_func(self):
+        vehicle = self.get_object()
+        user = self.request.user
+        if user.is_superuser or user.role == 'admin':
+            return True
+        return vehicle.created_by == user
+
+    def handle_no_permission(self):
+        raise PermissionDenied("No tienes permiso para eliminar este vehículo.")

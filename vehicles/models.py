@@ -41,7 +41,7 @@ class Vehicle(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='vehicles_created')
     is_active = models.BooleanField(default=True)
-
+    sold = models.BooleanField(default=False)
     def __str__(self):
         return f"{self.brand.name} {self.model} ({self.year})"
 

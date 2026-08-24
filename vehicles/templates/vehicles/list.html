@@ -1,23 +1,50 @@
 {% extends 'base.html' %}
+
 {% block content %}
 <div class="container">
-    <h1>Catálogo de Autos</h1>
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-4" style="color: var(--color-blue); font-weight: 700;">
+                <i class="bi bi-car-front"></i> Catálogo de Vehículos
+            </h1>
+        </div>
+    </div>
+    
     <div class="row">
         {% for vehicle in vehicles %}
-        <div class="col-md-4">
-            <div class="card mb-4">
-                <img src="{{ vehicle.main_image.url }}" class="card-img-top" alt="{{ vehicle }}">
-                <div class="card-body">
-                    <h5 class="card-title">{{ vehicle.brand.name }} {{ vehicle.model }}</h5>
-                    <p class="card-text">Año: {{ vehicle.year }} - ${{ vehicle.price }}</p>
-                    <a href="{% url 'vehicles:detail' vehicle.pk %}" class="btn btn-primary">Ver detalles</a>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    {% if vehicle.main_image %}
+                        <img src="{{ vehicle.main_image.url }}" class="card-img-top" alt="{{ vehicle }}">
+                    {% else %}
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                            <i class="bi bi-car-front" style="font-size: 3rem; color: var(--text-muted);"></i>
+                        </div>
+                    {% endif %}
+                    <div class="card-body">
+                        <h5 class="card-title">{{ vehicle.brand.name }} {{ vehicle.model }}</h5>
+                        <p class="card-text">
+                            <strong>Año:</strong> {{ vehicle.year }}<br>
+                            <strong>Precio:</strong> <span style="color: var(--color-orange); font-weight: 700;">${{ vehicle.price }}</span>
+                        </p>
+                        {% if vehicle.sold %}
+                            <span class="badge badge-danger">VENDIDO</span>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <a href="{% url 'vehicles:detail' vehicle.pk %}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-eye"></i> Ver detalles
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
         {% empty %}
-        <p>No hay vehículos disponibles.</p>
+            <div class="col-12 text-center">
+                <p class="text-muted">No hay vehículos disponibles en este momento.</p>
+            </div>
         {% endfor %}
     </div>
+    
     {% include 'includes/pagination.html' %}
 </div>
 {% endblock %}

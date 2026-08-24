@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6">
+            <!-- Imagen principal -->
+            {% if vehicle.main_image %}
+                <img src="{{ vehicle.main_image.url }}" class="img-fluid rounded" alt="{{ vehicle }}">
+            {% else %}
+                <img src="{% static 'img/no-image.png' %}" class="img-fluid rounded" alt="Sin imagen">
+            {% endif %}
+        </div>
+        <div class="col-md-6">
+            <h1 class="display-6">{{ vehicle.brand.name }} {{ vehicle.model }}</h1>
+            <p class="text-muted">{{ vehicle.year }}</p>
+            <p class="h3 text-orange fw-bold">${{ vehicle.price }}</p>
+            <hr>
+            <p><strong>Kilometraje:</strong> {{ vehicle.mileage }} km</p>
+            <p><strong>Transmisión:</strong> {{ vehicle.get_transmission_display }}</p>
+            <p><strong>Combustible:</strong> {{ vehicle.get_fuel_type_display }}</p>
+            <p><strong>Estado:</strong> {{ vehicle.get_status_display }}</p>
+            <p><strong>Publicado por:</strong> {{ vehicle.created_by.get_full_name|default:vehicle.created_by.username }}</p>
+            <p><strong>Email:</strong> {{ vehicle.created_by.email }}</p>
+            
+            {% if vehicle.sold %}
+                <span class="badge bg-danger fs-5">VENDIDO</span>
+            {% else %}
+                <!-- Botón de compra: solo si el usuario está autenticado, no es el creador y no está vendido -->
+                {% if user.is_authenticated and user != vehicle.created_by %}
+                    <button type="button" class="btn btn-orange btn-lg mt-3" data-bs-toggle="modal" data-bs-target="#purchaseModal">
+                        <i class="fas fa-shopping-cart"></i> Comprar este vehículo
+                    </button>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+    <div class="row mt-4">
+        <div class="col-12">
+            <h4>Descripción</h4>
+            <p>{{ vehicle.description|linebreaks }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de compra (solo si el vehículo no está vendido) -->
+{% if not vehicle.sold and user.is_authenticated and user != vehicle.created_by %}
+<div class="modal fade" id="purchaseModal" tabindex="-1" aria-labelledby="purchaseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'sales:purchase' vehicle.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="purchaseModalLabel">Confirmar compra</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h4>{{ vehicle.brand.name }} {{ vehicle.model }}</h4>
+                    <p><strong>Precio:</strong> ${{ vehicle.price }}</p>
+                    <hr>
+                    <h5>Datos del vendedor</h5>
+                    <p><strong>Nombre:</strong> {{ vehicle.created_by.get_full_name|default:vehicle.created_by.username }}</p>
+                    <p><strong>Email:</strong> {{ vehicle.created_by.email }}</p>
+                    <p><strong>Teléfono:</strong> {{ vehicle.created_by.profile.phone|default:"No especificado" }}</p>
+                    <p><strong>Dirección:</strong> {{ vehicle.created_by.profile.address|default:"No especificada" }}</p>
+                    <hr>
+                    <p class="text-muted">Al confirmar, aceptas la compra y te comprometes a pagar al vendedor.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Confirmar compra</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
