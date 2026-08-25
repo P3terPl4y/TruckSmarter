@@ -19,6 +19,19 @@ class VehicleForm(forms.ModelForm):
             "main_image",
             "is_active",
         ]
+        labels = {
+            "brand": "Marca",
+            "model": "Modelo",
+            "year": "Año",
+            "price": "Precio",
+            "mileage": "Kilometraje",
+            "transmission": "Transmisión",
+            "fuel_type": "Tipo de combustible",
+            "status": "Estado",
+            "description": "Descripción",
+            "main_image": "Imagen principal",
+            "is_active": "Activo",
+        }
         widgets = {
             "description": forms.Textarea(attrs={"rows": 4}),
         }

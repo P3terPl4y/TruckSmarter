@@ -173,3 +173,4 @@ CACHES = {
         'LOCATION': 'unique-snowflake',
     }
 }
+CSRF_TRUSTED_ORIGINS = ['https://mariana-flagless-inaudibly.ngrok-free.dev']
