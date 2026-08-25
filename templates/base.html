@@ -64,6 +64,28 @@
 
   <!-- ===== SCRIPTS ===== -->
   <script src="{% static 'js/main.js' %}"></script>
+  <script>(function() {
+      const toggle = document.getElementById('themeToggle');
+      const body = document.body;
+
+      if (localStorage.getItem('theme') === 'dark') {
+        body.classList.add('dark-mode');
+        toggle.innerHTML = '<i class="fas fa-sun"></i>';
+      } else {
+        toggle.innerHTML = '<i class="fas fa-moon"></i>';
+      }
+
+      toggle.addEventListener('click', function() {
+        body.classList.toggle('dark-mode');
+        if (body.classList.contains('dark-mode')) {
+          localStorage.setItem('theme', 'dark');
+          toggle.innerHTML = '<i class="fas fa-sun"></i>';
+        } else {
+          localStorage.setItem('theme', 'light');
+          toggle.innerHTML = '<i class="fas fa-moon"></i>';
+        }
+      });
+    })();</script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>
