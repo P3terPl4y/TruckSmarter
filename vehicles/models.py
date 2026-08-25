@@ -47,7 +47,10 @@ class Vehicle(models.Model):
     )
     is_active = models.BooleanField(default=True)
     sold = models.BooleanField(default=False)
-
+	    # ... tus campos existentes ...
+    view_count = models.PositiveIntegerField(default=0)
+    
+    
     def __str__(self):
         return f"{self.brand.name} {self.model} ({self.year})"
 

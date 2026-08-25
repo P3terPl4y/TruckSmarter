@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container" style="padding-top: 2rem;">
+
+    <!-- Título y datos del vehículo -->
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+        <h2 style="font-weight: 300; letter-spacing: 0.04em; color: var(--text-primary);">
+            🚗 {{ vehicle.brand.name }} {{ vehicle.model }}
+        </h2>
+        <span style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 40px; padding: 0.3rem 1.2rem; color: var(--text-muted); font-weight: 300; font-size: 0.85rem; letter-spacing: 0.04em;">
+            {{ vehicle.year }} · ${{ vehicle.price }}
+        </span>
+    </div>
+
+    <!-- Tarjeta de contador -->
+    <div style="display: grid; grid-template-columns: 1fr; max-width: 300px; margin-bottom: 2.5rem;">
+        <div style="background: var(--bg-card); backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.5rem 2rem; box-shadow: var(--shadow-card); text-align: center;">
+            <div style="font-size: 2.5rem; color: var(--color-accent);">👁️</div>
+            <div style="font-weight: 300; font-size: 3rem; letter-spacing: 0.02em; color: var(--text-primary);">{{ vehicle.view_count }}</div>
+            <div style="color: var(--text-muted); font-weight: 300; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em;">Total de vistas</div>
+        </div>
+    </div>
+
+    <!-- Últimas 10 vistas -->
+    <h3 style="font-weight: 300; letter-spacing: 0.06em; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.6rem; display: flex; align-items: center; gap: 0.6rem;">
+        <span>🕒</span> Últimas 10 vistas
+    </h3>
+
+    <div style="overflow-x: auto; margin-top: 1.5rem;">
+        <table style="width: 100%; border-collapse: separate; border-spacing: 0 8px;">
+            <thead>
+                <tr style="color: var(--text-muted); font-weight: 300; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;">
+                    <th style="padding: 0.5rem 1rem; text-align: left;">Fecha</th>
+                    <th style="padding: 0.5rem 1rem; text-align: left;">Usuario</th>
+                    <th style="padding: 0.5rem 1rem; text-align: left;">Sesión</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for view in recent_views %}
+                <tr style="background: var(--bg-card); backdrop-filter: blur(8px); border: 1px solid var(--border-color); border-radius: var(--radius-lg); transition: all var(--transition);">
+                    <td style="padding: 0.8rem 1rem; border-radius: var(--radius-lg) 0 0 var(--radius-lg); font-weight: 300; color: var(--text-secondary);">
+                        {{ view.viewed_at|date:"d/m/Y H:i" }}
+                    </td>
+                    <td style="padding: 0.8rem 1rem; font-weight: 300; color: var(--text-secondary);">
+                        {{ view.user|default:"Anónimo" }}
+                    </td>
+                    <td style="padding: 0.8rem 1rem; font-family: monospace; font-size: 0.8rem; color: var(--text-muted);">
+                        {{ view.session_key|default:"-" }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" style="padding: 2rem; text-align: center; color: var(--text-muted); font-weight: 300;">
+                        No hay vistas registradas para este vehículo.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Botón volver -->
+    <div style="margin: 2rem 0 3rem;">
+        <a href="{% url 'analytics:dashboard' %}" style="display: inline-block; background: transparent; border: 1px solid var(--color-accent); color: var(--color-accent); padding: 0.5rem 1.8rem; border-radius: 40px; font-weight: 400; font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; transition: all 0.3s ease; cursor: pointer; text-decoration: none;">
+            ← Volver al panel
+        </a>
+    </div>
+
+</div>
+{% endblock %}

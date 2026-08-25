@@ -34,3 +34,5 @@ Thumbs.db
 
 # Project specific
 vehicles/img.ico
+*.pyc
+__pycache__/
