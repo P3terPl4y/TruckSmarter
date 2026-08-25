@@ -177,10 +177,10 @@ CACHES = {
         }
     }
 }
-<<<<<<< HEAD
+
 CSRF_TRUSTED_ORIGINS = ['https://mariana-flagless-inaudibly.ngrok-free.dev']
-=======
+
 
 # Tiempo de expiración para evitar vistas duplicadas (en segundos)
 VIEW_EXPIRY_SECONDS = 86400  # 24 horas
->>>>>>> actual
+
