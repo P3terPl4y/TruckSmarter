@@ -4,335 +4,676 @@
 {% block title %}Mi Perfil - TruckSmarter{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <!-- Encabezado del perfil -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex align-items-center justify-content-between flex-wrap">
-                <div>
-                    <h1 class="display-5 fw-bold" style="color: var(--color-blue-metallic);">
-                        <i class="bi bi-person-circle"></i> Mi Perfil
-                    </h1>
-                    <p class="text-muted">Gestiona tus datos personales y preferencias</p>
-                </div>
-                <div>
-                    <span class="badge bg-{% if user.role == 'admin' %}danger{% elif user.role == 'seller' %}success{% else %}secondary{% endif %} fs-6 p-2">
-                        <i class="bi bi-shield-check"></i> 
-                        {{ user.get_role_display }}
-                    </span>
-                </div>
+<div class="container profile-container">
+
+  <!-- Encabezado -->
+  <div class="profile-header">
+    <div>
+      <h1><i class="fas fa-user-circle"></i> Mi Perfil</h1>
+      <p class="text-muted">Gestiona tus datos personales y preferencias</p>
+    </div>
+    <span class="role-badge role-{{ user.role }}">
+      <i class="fas fa-shield-alt"></i> {{ user.get_role_display }}
+    </span>
+  </div>
+
+  <!-- Layout de dos columnas (usando grid) -->
+  <div class="profile-grid">
+
+    <!-- COLUMNA IZQUIERDA: Formulario -->
+    <div class="profile-form-card">
+      <div class="card-header-custom">
+        <h5><i class="fas fa-edit"></i> Editar datos personales</h5>
+      </div>
+      <div class="card-body-custom">
+        <form method="post" id="profile-form">
+          {% csrf_token %}
+
+          <!-- Datos del usuario -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="id_username">Usuario</label>
+              {{ form.username }}
             </div>
-        </div>
+            <div class="form-group">
+              <label for="id_email">Email</label>
+              {{ form.email }}
+            </div>
+            <div class="form-group">
+              <label for="id_first_name">Nombre</label>
+              {{ form.first_name }}
+            </div>
+            <div class="form-group">
+              <label for="id_last_name">Apellido</label>
+              {{ form.last_name }}
+            </div>
+          </div>
+
+          <hr>
+
+          <!-- Información de contacto -->
+          <h6><i class="fas fa-address-card"></i> Información de contacto</h6>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="id_phone">Teléfono</label>
+              {{ form.phone }}
+            </div>
+            <div class="form-group">
+              <label for="id_address">Dirección</label>
+              {{ form.address }}
+            </div>
+          </div>
+
+          <hr>
+
+          <!-- Datos de pago -->
+          <h6><i class="fas fa-credit-card"></i> Datos de pago</h6>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="id_payment_email">Email de pago</label>
+              {{ form.payment_email }}
+              <small class="help-text">Correo asociado a tu cuenta de pago (PayPal, Stripe, etc.)</small>
+            </div>
+            <div class="form-group">
+              <label for="id_payment_phone">Teléfono de pago</label>
+              {{ form.payment_phone }}
+            </div>
+            <div class="form-group">
+              <label for="id_bank_account">Cuenta bancaria / PayPal</label>
+              {{ form.bank_account }}
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-hero" id="profile-submit">
+              <i class="fas fa-save"></i> Guardar cambios
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
 
-    <div class="row g-4">
-        <!-- COLUMNA IZQUIERDA: Formulario de perfil -->
-        <div class="col-lg-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-header" style="background: var(--color-blue-metallic); color: white; border-radius: 12px 12px 0 0;">
-                    <h5 class="mb-0"><i class="bi bi-pencil-square"></i> Editar datos personales</h5>
-                </div>
-                <div class="card-body p-4">
-                    <form method="post" id="profile-form">
-                        {% csrf_token %}
-                        
-                        <!-- Datos del usuario -->
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="id_username" class="form-label fw-bold">Usuario</label>
-                                {{ form.username }}
-                            </div>
-                            <div class="col-md-6">
-                                <label for="id_email" class="form-label fw-bold">Email</label>
-                                {{ form.email }}
-                            </div>
-                            <div class="col-md-6">
-                                <label for="id_first_name" class="form-label fw-bold">Nombre</label>
-                                {{ form.first_name }}
-                            </div>
-                            <div class="col-md-6">
-                                <label for="id_last_name" class="form-label fw-bold">Apellido</label>
-                                {{ form.last_name }}
-                            </div>
-                        </div>
+    <!-- COLUMNA DERECHA: Información y acciones -->
+    <div class="profile-sidebar">
 
-                        <hr class="my-4">
-
-                        <!-- Datos del perfil (Profile) -->
-                        <h6 class="fw-bold"><i class="bi bi-info-circle"></i> Información de contacto</h6>
-                        <div class="row g-3">
-                            <div class="col-md-12">
-                                <label for="id_phone" class="form-label">Teléfono</label>
-                                {{ form.phone }}
-                            </div>
-                            <div class="col-md-12">
-                                <label for="id_address" class="form-label">Dirección</label>
-                                {{ form.address }}
-                            </div>
-                        </div>
-
-                        <hr class="my-4">
-
-                        <!-- Datos de pago -->
-                        <h6 class="fw-bold"><i class="bi bi-credit-card"></i> Datos de pago</h6>
-                        <div class="row g-3">
-                            <div class="col-md-12">
-                                <label for="id_payment_email" class="form-label">Email de pago</label>
-                                {{ form.payment_email }}
-                                <small class="text-muted">Correo asociado a tu cuenta de pago (PayPal, Stripe, etc.)</small>
-                            </div>
-                            <div class="col-md-12">
-                                <label for="id_payment_phone" class="form-label">Teléfono de pago</label>
-                                {{ form.payment_phone }}
-                            </div>
-                            <div class="col-md-12">
-                                <label for="id_bank_account" class="form-label">Cuenta bancaria / PayPal</label>
-                                {{ form.bank_account }}
-                            </div>
-                        </div>
-
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg px-5">
-                                <i class="bi bi-save"></i> Guardar cambios
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+      <!-- Tarjeta de información de cuenta -->
+      <div class="info-card">
+        <div class="card-header-custom">
+          <h5><i class="fas fa-id-badge"></i> Información de cuenta</h5>
         </div>
-
-        <!-- COLUMNA DERECHA: Información adicional y acciones -->
-        <div class="col-lg-6">
-            <!-- Tarjeta de información del usuario -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header" style="background: var(--color-blue-metallic); color: white; border-radius: 12px 12px 0 0;">
-                    <h5 class="mb-0"><i class="bi bi-person-badge"></i> Información de cuenta</h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-person-circle" style="font-size: 3rem; color: var(--color-blue-metallic);"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h5 class="mb-0">{{ user.get_full_name|default:user.username }}</h5>
-                            <p class="text-muted mb-0">{{ user.email }}</p>
-                        </div>
-                    </div>
-                    
-                    <hr>
-                    
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <small class="text-muted d-block">Teléfono</small>
-                            <span>{{ profile.phone|default:"<span class='text-muted'>No especificado</span>" }}</span>
-                        </div>
-                        <div class="col-6">
-                            <small class="text-muted d-block">Rol</small>
-                            <span class="badge bg-{% if user.role == 'admin' %}danger{% elif user.role == 'seller' %}success{% else %}secondary{% endif %}">
-                                {{ user.get_role_display }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
+        <div class="card-body-custom">
+          <div class="user-avatar">
+            <i class="fas fa-user-circle"></i>
+            <div>
+              <h5>{{ user.get_full_name|default:user.username }}</h5>
+              <p class="text-muted">{{ user.email }}</p>
             </div>
-
-            <!-- Cambio de rol -->
-            {% if user.role == 'customer' %}
-            <div class="card shadow-sm mb-4 border-warning">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-arrow-up-circle" style="font-size: 2rem; color: var(--color-orange-metallic);"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="mb-1">¿Quieres vender vehículos?</h6>
-                            <p class="text-muted small mb-2">Conviértete en comerciante y comienza a publicar tus vehículos.</p>
-                            <form action="{% url 'users:change_role' %}" method="post">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-warning btn-sm">
-                                    <i class="bi bi-rocket-takeoff"></i> Convertirme en comerciante
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
+          </div>
+          <hr>
+          <div class="info-row">
+            <div>
+              <small class="text-muted">Teléfono</small>
+              <span>{{ profile.phone|default:"No especificado" }}</span>
             </div>
-            {% endif %}
-
-            <!-- Vehículos publicados (solo para comerciantes y admins) -->
-            {% if user.role == 'seller' or user.role == 'admin' %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-header" style="background: var(--color-blue-metallic); color: white; border-radius: 12px 12px 0 0;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="bi bi-truck"></i> Mis vehículos</h5>
-                        <a href="{% url 'vehicles:create' %}" class="btn btn-sm btn-light">
-                            <i class="bi bi-plus-circle"></i> Publicar
-                        </a>
-                    </div>
-                </div>
-                <div class="card-body">
-                    {% if vehicles %}
-                        <div class="row g-3">
-                            {% for vehicle in vehicles %}
-                                <div class="col-md-6">
-                                    <div class="vehicle-card p-2 border rounded-3 hover-shadow">
-                                        <div class="d-flex align-items-center">
-                                            {% if vehicle.main_image %}
-                                                <img src="{{ vehicle.main_image.url }}" alt="{{ vehicle }}" 
-                                                     style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
-                                            {% else %}
-                                                <div style="width: 60px; height: 60px; background: #e9ecef; border-radius: 8px; 
-                                                     display: flex; align-items: center; justify-content: center;">
-                                                    <i class="bi bi-car-front text-secondary" style="font-size: 1.5rem;"></i>
-                                                </div>
-                                            {% endif %}
-                                            <div class="ms-2 flex-grow-1">
-                                                <h6 class="mb-0 small">{{ vehicle.brand.name }} {{ vehicle.model }}</h6>
-                                                <span class="text-muted small">${{ vehicle.price }}</span>
-                                                {% if vehicle.sold %}
-                                                    <span class="badge bg-danger ms-1">Vendido</span>
-                                                {% endif %}
-                                            </div>
-                                            <div class="btn-group btn-group-sm">
-                                                <a href="{% url 'vehicles:update' vehicle.pk %}" class="btn btn-outline-primary">
-                                                    <i class="bi bi-pencil"></i>
-                                                </a>
-                                                <a href="{% url 'vehicles:delete' vehicle.pk %}" class="btn btn-outline-danger">
-                                                    <i class="bi bi-trash"></i>
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <p class="text-muted text-center mb-0">Aún no has publicado vehículos.</p>
-                    {% endif %}
-                </div>
+            <div>
+              <small class="text-muted">Rol</small>
+              <span class="role-badge role-{{ user.role }}">{{ user.get_role_display }}</span>
             </div>
-            {% endif %}
-
-            <!-- Historial de compras -->
-            <div class="card shadow-sm">
-                <div class="card-header" style="background: var(--color-blue-metallic); color: white; border-radius: 12px 12px 0 0;">
-                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Historial de compras</h5>
-                </div>
-                <div class="card-body">
-                    {% if user.purchases.all %}
-                        <div class="list-group list-group-flush">
-                            {% for sale in user.purchases.all|slice:":5" %}
-                                <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                                    <div>
-                                        <span class="fw-bold">{{ sale.vehicle.brand.name }} {{ sale.vehicle.model }}</span>
-                                        <br>
-                                        <small class="text-muted">{{ sale.created_at|date:"d/m/Y" }}</small>
-                                    </div>
-                                    <span class="badge bg-{% if sale.status == 'completed' %}success{% else %}warning{% endif %}">
-                                        ${{ sale.amount }}
-                                    </span>
-                                </div>
-                            {% endfor %}
-                            {% if user.purchases.count > 5 %}
-                                <div class="text-center mt-2">
-                                    <a href="{% url 'sales:history' %}" class="btn btn-link btn-sm">Ver todas</a>
-                                </div>
-                            {% endif %}
-                        </div>
-                    {% else %}
-                        <p class="text-muted text-center mb-0">No has realizado compras aún.</p>
-                    {% endif %}
-                </div>
-            </div>
+          </div>
         </div>
+      </div>
+
+      <!-- Cambio de rol (solo si es cliente) -->
+      {% if user.role == 'customer' %}
+      <div class="info-card border-accent">
+        <div class="card-body-custom">
+          <div class="role-upgrade">
+            <i class="fas fa-rocket"></i>
+            <div>
+              <h6>¿Quieres vender vehículos?</h6>
+              <p class="text-muted">Conviértete en comerciante y comienza a publicar tus vehículos.</p>
+              <form action="{% url 'users:change_role' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn-outline-gold">
+                  <i class="fas fa-arrow-up"></i> Convertirme en comerciante
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Mis vehículos (comerciantes y admins) -->
+      {% if user.role == 'seller' or user.role == 'admin' %}
+      <div class="info-card">
+        <div class="card-header-custom">
+          <div class="header-actions">
+            <h5><i class="fas fa-truck"></i> Mis vehículos</h5>
+            <a href="{% url 'vehicles:create' %}" class="btn-outline-gold btn-sm">
+              <i class="fas fa-plus"></i> Publicar
+            </a>
+          </div>
+        </div>
+        <div class="card-body-custom">
+          {% if vehicles %}
+            <div class="vehicle-list">
+              {% for vehicle in vehicles %}
+                <div class="vehicle-item">
+                  <div class="vehicle-thumb">
+                    {% if vehicle.main_image %}
+                      <img src="{{ vehicle.main_image.url }}" alt="{{ vehicle }}" />
+                    {% else %}
+                      <i class="fas fa-car"></i>
+                    {% endif %}
+                  </div>
+                  <div class="vehicle-info">
+                    <h6>{{ vehicle.brand.name }} {{ vehicle.model }}</h6>
+                    <span class="price">${{ vehicle.price }}</span>
+                    {% if vehicle.sold %}
+                      <span class="badge-sold">Vendido</span>
+                    {% endif %}
+                  </div>
+                  <div class="vehicle-actions">
+                    <a href="{% url 'vehicles:update' vehicle.pk %}" class="btn-icon" title="Editar">
+                      <i class="fas fa-pencil-alt"></i>
+                    </a>
+                    <a href="{% url 'vehicles:delete' vehicle.pk %}" class="btn-icon danger" title="Eliminar">
+                      <i class="fas fa-trash"></i>
+                    </a>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-muted text-center">Aún no has publicado vehículos.</p>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Historial de compras -->
+      <div class="info-card">
+        <div class="card-header-custom">
+          <h5><i class="fas fa-clock"></i> Historial de compras</h5>
+        </div>
+        <div class="card-body-custom">
+          {% if user.purchases.all %}
+            <div class="purchase-list">
+              {% for sale in user.purchases.all|slice:":5" %}
+                <div class="purchase-item">
+                  <div>
+                    <span class="purchase-vehicle">{{ sale.vehicle.brand.name }} {{ sale.vehicle.model }}</span>
+                    <br>
+                    <small class="text-muted">{{ sale.created_at|date:"d/m/Y" }}</small>
+                  </div>
+                  <span class="price-tag">${{ sale.amount }}</span>
+                </div>
+              {% endfor %}
+              {% if user.purchases.count > 5 %}
+                <div class="text-center">
+                  <a href="{% url 'sales:history' %}" class="btn-outline-gold btn-sm">Ver todas</a>
+                </div>
+              {% endif %}
+            </div>
+          {% else %}
+            <p class="text-muted text-center">No has realizado compras aún.</p>
+          {% endif %}
+        </div>
+      </div>
+
     </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Estilos específicos para el perfil */
-    .hover-shadow:hover {
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-        transition: box-shadow 0.3s ease;
-    }
+  /* ========================================
+     ESTILOS ESPECÍFICOS DEL PERFIL
+     (Complementan el CSS Ferrari‑inspired)
+     ======================================== */
 
-    .vehicle-card {
-        transition: all 0.3s ease;
-        background: var(--bs-body-bg);
-    }
+  /* Layout */
+  .profile-container {
+    padding: 2rem 0;
+  }
+  .profile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+  .profile-header h1 {
+    font-weight: 300;
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
+    letter-spacing: 0.04em;
+    color: var(--text-primary);
+    margin: 0;
+  }
+  .profile-header h1 i {
+    color: var(--color-accent);
+    margin-right: 0.6rem;
+  }
+  .profile-header .text-muted {
+    color: var(--text-muted);
+    font-weight: 300;
+    margin: 0;
+  }
 
-    .vehicle-card:hover {
-        transform: translateY(-2px);
-        border-color: var(--color-blue-metallic) !important;
-    }
+  .role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 1rem;
+    border-radius: 40px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .role-badge.role-admin {
+    background: rgba(212, 55, 55, 0.15);
+    color: #d43737;
+    border: 1px solid rgba(212, 55, 55, 0.2);
+  }
+  .role-badge.role-seller {
+    background: rgba(11, 126, 75, 0.15);
+    color: #0b7e4b;
+    border: 1px solid rgba(11, 126, 75, 0.2);
+  }
+  .role-badge.role-customer {
+    background: rgba(107, 114, 128, 0.15);
+    color: #6b7280;
+    border: 1px solid rgba(107, 114, 128, 0.2);
+  }
+  body.dark-mode .role-badge.role-admin {
+    background: rgba(212, 55, 55, 0.25);
+    color: #f87171;
+  }
+  body.dark-mode .role-badge.role-seller {
+    background: rgba(11, 126, 75, 0.25);
+    color: #6ee7b7;
+  }
+  body.dark-mode .role-badge.role-customer {
+    background: rgba(107, 114, 128, 0.25);
+    color: #9ca3af;
+  }
 
-    /* Estilos para el modo oscuro */
-    body.dark-mode .vehicle-card {
-        background: var(--color-dark-surface);
-        border-color: #3a3a4a !important;
-    }
+  /* Grid de dos columnas */
+  .profile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
 
-    body.dark-mode .vehicle-card:hover {
-        border-color: var(--color-blue-light) !important;
-    }
+  /* Tarjetas personalizadas */
+  .profile-form-card,
+  .info-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--transition);
+  }
+  .profile-form-card:hover,
+  .info-card:hover {
+    box-shadow: var(--shadow-md);
+  }
 
-    /* Mejoras en los campos del formulario */
-    .form-control:focus {
-        border-color: var(--color-blue-metallic);
-        box-shadow: 0 0 0 0.2rem rgba(26, 58, 92, 0.25);
-    }
+  .card-header-custom {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .card-header-custom h5 {
+    font-weight: 400;
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+    color: var(--text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .card-header-custom h5 i {
+    color: var(--color-accent);
+  }
 
-    body.dark-mode .form-control {
-        background-color: var(--color-dark-surface);
-        border-color: #3a3a4a;
-        color: var(--color-white);
-    }
+  .card-body-custom {
+    padding: 1.5rem;
+  }
 
-    body.dark-mode .form-control:focus {
-        border-color: var(--color-blue-light);
-        box-shadow: 0 0 0 0.2rem rgba(42, 90, 140, 0.25);
-    }
+  /* Formulario */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  .form-row .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+  .form-row .form-group label {
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.2rem;
+  }
+  .form-row .form-group input,
+  .form-row .form-group textarea,
+  .form-row .form-group select {
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.8rem;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    transition: border-color var(--transition), box-shadow var(--transition);
+    width: 100%;
+  }
+  .form-row .form-group input:focus,
+  .form-row .form-group textarea:focus,
+  .form-row .form-group select:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(212, 168, 55, 0.15);
+    outline: none;
+  }
+  body.dark-mode .form-row .form-group input,
+  body.dark-mode .form-row .form-group textarea,
+  body.dark-mode .form-row .form-group select {
+    background: var(--bg-card);
+  }
+  .help-text {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+  }
 
-    body.dark-mode .card {
-        background-color: var(--color-dark-surface);
-        border-color: #3a3a4a;
-    }
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+  }
 
-    body.dark-mode .card-header {
-        background: var(--color-dark-surface) !important;
-        border-bottom-color: #3a3a4a;
-    }
+  /* Avatar */
+  .user-avatar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .user-avatar i {
+    font-size: 3rem;
+    color: var(--color-accent);
+  }
+  .user-avatar h5 {
+    font-weight: 400;
+    font-size: 1.1rem;
+    margin: 0;
+    color: var(--text-primary);
+  }
+  .user-avatar p {
+    margin: 0;
+    font-size: 0.9rem;
+  }
 
-    body.dark-mode .list-group-item {
-        background-color: transparent;
-        border-color: #3a3a4a;
-        color: var(--color-white);
-    }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .info-row > div {
+    flex: 1;
+    min-width: 100px;
+  }
+  .info-row small {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+  .info-row span {
+    font-weight: 300;
+    color: var(--text-secondary);
+  }
 
-    body.dark-mode .text-muted {
-        color: #a0a0b0 !important;
-    }
+  /* Cambio de rol */
+  .role-upgrade {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .role-upgrade i {
+    font-size: 2rem;
+    color: var(--color-accent);
+    flex-shrink: 0;
+  }
+  .role-upgrade h6 {
+    font-weight: 400;
+    margin: 0 0 0.2rem 0;
+    color: var(--text-primary);
+  }
+  .role-upgrade p {
+    font-size: 0.85rem;
+    margin: 0 0 0.5rem 0;
+  }
 
-    /* Badge de rol en el encabezado */
-    .badge.role-badge {
-        font-size: 0.9rem;
-        padding: 0.5rem 1rem;
+  .border-accent {
+    border-color: var(--color-accent) !important;
+  }
+
+  /* Mis vehículos (mini lista) */
+  .vehicle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  .vehicle-item {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: var(--bg-body);
+    transition: background var(--transition);
+  }
+  .vehicle-item:hover {
+    background: var(--bg-card-hover);
+  }
+  .vehicle-thumb {
+    width: 50px;
+    height: 50px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .vehicle-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .vehicle-thumb i {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+  }
+  .vehicle-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .vehicle-info h6 {
+    font-weight: 400;
+    font-size: 0.9rem;
+    margin: 0;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .vehicle-info .price {
+    font-size: 0.85rem;
+    color: var(--color-accent);
+  }
+  .badge-sold {
+    background: rgba(212, 55, 55, 0.15);
+    color: #d43737;
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 0.05rem 0.6rem;
+    border-radius: 40px;
+    margin-left: 0.3rem;
+  }
+  body.dark-mode .badge-sold {
+    background: rgba(212, 55, 55, 0.25);
+    color: #f87171;
+  }
+  .vehicle-actions {
+    display: flex;
+    gap: 0.3rem;
+    flex-shrink: 0;
+  }
+  .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all var(--transition);
+    cursor: pointer;
+  }
+  .btn-icon:hover {
+    background: var(--bg-card-hover);
+    color: var(--color-accent);
+  }
+  .btn-icon.danger:hover {
+    color: #d43737;
+    background: rgba(212, 55, 55, 0.1);
+  }
+
+  /* Historial de compras */
+  .purchase-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .purchase-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .purchase-item:last-child {
+    border-bottom: none;
+  }
+  .purchase-vehicle {
+    font-weight: 400;
+    color: var(--text-primary);
+  }
+  .price-tag {
+    font-weight: 300;
+    color: var(--color-accent);
+    font-size: 0.95rem;
+  }
+
+  .header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  .btn-sm {
+    padding: 0.2rem 1rem;
+    font-size: 0.7rem;
+  }
+
+  /* ----- RESPONSIVE ----- */
+  @media (max-width: 1024px) {
+    .profile-grid {
+      grid-template-columns: 1fr;
     }
+  }
+  @media (max-width: 640px) {
+    .profile-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .form-row {
+      grid-template-columns: 1fr;
+    }
+    .user-avatar {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .info-row {
+      flex-direction: column;
+    }
+    .role-upgrade {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .vehicle-item {
+      flex-wrap: wrap;
+    }
+    .vehicle-actions {
+      width: 100%;
+      justify-content: flex-end;
+    }
+    .form-actions {
+      justify-content: center;
+    }
+  }
+
+  /* ----- AJUSTES PARA MODO OSCURO ----- */
+  body.dark-mode .profile-form-card,
+  body.dark-mode .info-card {
+    background: var(--bg-card);
+  }
+  body.dark-mode .vehicle-item {
+    background: var(--bg-card);
+  }
+  body.dark-mode .vehicle-item:hover {
+    background: var(--bg-card-hover);
+  }
+  body.dark-mode .purchase-item {
+    border-color: var(--border-color);
+  }
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // Mejoras de UX para el formulario
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.getElementById('profile-form');
-        const submitBtn = form.querySelector('button[type="submit"]');
-        
-        form.addEventListener('submit', function() {
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Guardando...';
-        });
-    });
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('profile-form');
+    const submitBtn = document.getElementById('profile-submit');
+
+    if (form && submitBtn) {
+      form.addEventListener('submit', function() {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+      });
+    }
+  });
 </script>
 {% endblock %}
