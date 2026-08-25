@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.urls import reverse
 from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.mixins import (LoginRequiredMixin,
                                         UserPassesTestMixin)
@@ -41,10 +42,16 @@ class UserUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     success_url = reverse_lazy("users:admin_list")
 
 
+# users/views.py
 class CustomLoginView(LoginView):
-    template_name = "users/login.html"
+    template_name = 'users/login.html'
     redirect_authenticated_user = True
 
+    def get_success_url(self):
+        user = self.request.user
+        if user.is_superuser or user.role == 'admin':
+            return reverse('dashboard:home')
+        return reverse('vehicles:list')
 
 class CustomLogoutView(LogoutView):
     next_page = "vehicles:list"

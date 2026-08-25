@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Marcas - Panel Admin{% endblock %}
+
+{% block content %}
+<div class="container dashboard-list">
+  <div class="list-header">
+    <h2><i class="fas fa-tag"></i> Marcas de vehículos</h2>
+    <a href="{% url 'dashboard:brand_create' %}" class="btn-hero btn-sm">
+      <i class="fas fa-plus"></i> Nueva marca
+    </a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Logo</th>
+          <th>Vehículos</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for brand in brands %}
+        <tr>
+          <td><strong>{{ brand.name }}</strong></td>
+          <td>
+            {% if brand.logo %}
+              <img src="{{ brand.logo.url }}" alt="{{ brand.name }}" style="height:30px; width:auto;">
+            {% else %}
+              <span class="text-muted">Sin logo</span>
+            {% endif %}
+          </td>
+          <td>{{ brand.vehicles.count }}</td>
+          <td>
+            <a href="{% url 'dashboard:brand_update' brand.pk %}" class="btn-icon" title="Editar">
+              <i class="fas fa-pencil-alt"></i>
+            </a>
+            <a href="{% url 'dashboard:brand_delete' brand.pk %}" class="btn-icon danger" title="Eliminar">
+              <i class="fas fa-trash"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-muted">No hay marcas registradas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

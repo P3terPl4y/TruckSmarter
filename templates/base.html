@@ -30,6 +30,9 @@
         <a href="{% url 'users:logout' %}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
           <i class="fas fa-sign-out-alt"></i> Salir
         </a>
+        	{% if user.is_authenticated and user.role == 'admin' or user.is_superuser %}
+  		<a href="{% url 'dashboard:home' %}"><i class="fas fa-tachometer-alt"></i> Panel</a>
+		{% endif %}
         <form id="logout-form" action="{% url 'users:logout' %}" method="post" style="display: none;">
           {% csrf_token %}
         </form>

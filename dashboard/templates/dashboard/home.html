@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Panel de Administración - TruckSmarter{% endblock %}
+
+{% block content %}
+<div class="container dashboard-home">
+  <h1><i class="fas fa-tachometer-alt"></i> Panel de Administración</h1>
+  <div class="dashboard-grid">
+    <a href="{% url 'dashboard:user_list' %}" class="dashboard-card">
+      <i class="fas fa-users"></i>
+      <h5>Usuarios</h5>
+      <p>Gestionar usuarios, roles y permisos</p>
+    </a>
+    <a href="{% url 'dashboard:brand_list' %}" class="dashboard-card">
+      <i class="fas fa-tag"></i>
+      <h5>Marcas</h5>
+      <p>Crear o editar marcas de vehículos</p>
+    </a>
+    <a href="{% url 'vehicles:list' %}" class="dashboard-card">
+      <i class="fas fa-car"></i>
+      <h5>Vehículos</h5>
+      <p>Ver todos los vehículos publicados</p>
+    </a>
+    <a href="{% url 'admin:index' %}" class="dashboard-card" target="_blank">
+      <i class="fas fa-cog"></i>
+      <h5>Admin de Django</h5>
+      <p>Acceso al panel tradicional (avanzado)</p>
+    </a>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dashboard-home {
+    padding: 2rem 0;
+  }
+  .dashboard-home h1 {
+    font-weight: 300;
+    font-size: 2rem;
+    margin-bottom: 2rem;
+  }
+  .dashboard-home h1 i {
+    color: var(--color-accent);
+    margin-right: 0.5rem;
+  }
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.5rem;
+  }
+  .dashboard-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.8rem 1.5rem;
+    text-align: center;
+    transition: transform var(--transition), box-shadow var(--transition);
+    box-shadow: var(--shadow-sm);
+    text-decoration: none;
+    color: var(--text-primary);
+  }
+  .dashboard-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-card-hover);
+    border-color: var(--color-accent);
+  }
+  .dashboard-card i {
+    font-size: 2.8rem;
+    color: var(--color-accent);
+    margin-bottom: 0.5rem;
+  }
+  .dashboard-card h5 {
+    font-weight: 400;
+    margin-bottom: 0.3rem;
+  }
+  .dashboard-card p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  @media (max-width: 480px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>
+{% endblock %}

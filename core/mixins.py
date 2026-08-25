@@ -44,3 +44,11 @@ class OwnerOrAdminRequiredMixin(UserPassesTestMixin):
         if self.request.user and self.request.user.is_authenticated:
             raise PermissionDenied("No tienes permiso para modificar este vehículo.")
         return super().handle_no_permission()
+# core/mixins.py
+class AdminRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        user = self.request.user
+        return user.is_authenticated and (user.is_superuser or user.role == 'admin')
+
+    def handle_no_permission(self):
+        raise PermissionDenied("No tienes permisos para acceder a esta sección.")

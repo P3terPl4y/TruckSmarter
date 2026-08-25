@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "users",
     "core",
     "sales",
+    "dashboard",
     "crispy_forms",          # <--- Agregar
     "crispy_bootstrap5", 
 ]
@@ -72,6 +73,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 LOGIN_REDIRECT_URL = "vehicles:list"
 LOGIN_URL = '/users/login/'
+LOGIN_REDIRECT_URL = 'vehicles:list'  # por defecto
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # Database
 DATABASES = {

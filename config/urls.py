@@ -8,6 +8,7 @@ urlpatterns = [
     path("", include("vehicles.urls")),
     path("users/", include("users.urls")),
     path("sales/", include("sales.urls")),
+    path('dashboard/', include('dashboard.urls')),
 ]
 
 # Servir archivos estáticos y multimedia en desarrollo
