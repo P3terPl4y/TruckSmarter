@@ -1,66 +1,54 @@
-from django.contrib import messages
+# core/mixins.py
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
-from django.shortcuts import redirect
-from django.urls import reverse
-
 
 class SellerRequiredMixin(UserPassesTestMixin):
-    """Permite acceso solo a comerciantes y administradores."""
-
     def test_func(self):
-        return self.request.user.is_authenticated and self.request.user.role in [
-            "seller",
-            "admin",
-        ]
-
+        user = self.request.user
+        return user and user.is_authenticated and user.role in ['seller', 'admin']
+    
     def handle_no_permission(self):
-        if self.request.user.is_authenticated:
-            messages.error(
-                self.request,
-                "Necesitas ser comerciante o administrador para realizar esta acción.",
-            )
-            return redirect("vehicles:list")
-        return redirect("users:login")
+        if self.request.user and self.request.user.is_authenticated:
+            raise PermissionDenied("Necesitas ser comerciante o administrador para realizar esta acción.")
+        return super().handle_no_permission()
 
 
 class AdminRequiredMixin(UserPassesTestMixin):
-    """Permite acceso solo a administradores."""
-
     def test_func(self):
-        return self.request.user.is_authenticated and self.request.user.role == "admin"
-
+        user = self.request.user
+        return user and user.is_authenticated and user.role == 'admin'
+    
     def handle_no_permission(self):
-        if self.request.user.is_authenticated:
-            messages.error(
-                self.request, "Necesitas ser administrador para realizar esta acción."
-            )
-            return redirect("vehicles:list")
-        return redirect("users:login")
+        if self.request.user and self.request.user.is_authenticated:
+            raise PermissionDenied("Necesitas ser administrador para realizar esta acción.")
+        return super().handle_no_permission()
 
 
 class OwnerOrAdminRequiredMixin(UserPassesTestMixin):
-    """Permite acceso al propietario del objeto o a administradores."""
-
     def test_func(self):
-        obj = self.get_object() if hasattr(self, "get_object") else None
+        obj = self.get_object() if hasattr(self, 'get_object') else None
         user = self.request.user
-
-        # Administradores y superusuarios siempre pueden
-        if user.is_superuser or user.role == "admin":
+        
+        if not user or not user.is_authenticated:
+            return False
+        
+        if user.is_superuser or user.role == 'admin':
             return True
-
-        # Verificar si el objeto tiene el atributo 'created_by'
-        if obj and hasattr(obj, "created_by"):
+        
+        if obj and hasattr(obj, 'created_by'):
             return obj.created_by == user
-
-        # Si no tiene 'created_by', denegar acceso
+        
         return False
+    
+    def handle_no_permission(self):
+        if self.request.user and self.request.user.is_authenticated:
+            raise PermissionDenied("No tienes permiso para modificar este vehículo.")
+        return super().handle_no_permission()
+# core/mixins.py
+class AdminRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        user = self.request.user
+        return user.is_authenticated and (user.is_superuser or user.role == 'admin')
 
     def handle_no_permission(self):
-        if self.request.user.is_authenticated:
-            messages.error(
-                self.request, "No tienes permiso para modificar este vehículo."
-            )
-            return redirect("vehicles:list")
-        return redirect("users:login")
+        raise PermissionDenied("No tienes permisos para acceder a esta sección.")

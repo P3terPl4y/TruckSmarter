@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Historial de compras - TruckSmarter{% endblock %}
+
+{% block content %}
+<div class="container history-container">
+  <h2><i class="fas fa-clock"></i> Historial de Compras</h2>
+
+  {% if sales %}
+    <div class="history-grid">
+      {% for sale in sales %}
+        <div class="history-card">
+          <div class="history-header">
+            <h5>{{ sale.vehicle.brand.name }} {{ sale.vehicle.model }}</h5>
+            <span class="badge-status {% if sale.status == 'completed' %}new{% else %}used{% endif %}">
+              {{ sale.get_status_display }}
+            </span>
+          </div>
+          <div class="history-body">
+            <p><i class="fas fa-tag"></i> <strong>Precio:</strong> ${{ sale.amount }}</p>
+            <p><i class="fas fa-user"></i> <strong>Vendedor:</strong> {{ sale.seller.get_full_name|default:sale.seller.username }}</p>
+            <p><i class="fas fa-calendar-alt"></i> <strong>Fecha:</strong> {{ sale.created_at|date:"d/m/Y H:i" }}</p>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-muted text-center">No has realizado compras aún.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .history-container {
+    padding: 2rem 0;
+  }
+  .history-container h2 {
+    font-weight: 300;
+    font-size: 2rem;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+  }
+  .history-container h2 i {
+    color: var(--color-accent);
+    margin-right: 0.5rem;
+  }
+
+  .history-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .history-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition), box-shadow var(--transition);
+  }
+  .history-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+  }
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 1.2rem;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(255,255,255,0.02);
+  }
+  .history-header h5 {
+    font-weight: 400;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    margin: 0;
+  }
+  .history-header .badge-status {
+    font-size: 0.6rem;
+    padding: 0.2rem 0.8rem;
+    border-radius: 40px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    background: var(--color-accent);
+    color: #0a0a12;
+  }
+  .history-header .badge-status.new {
+    background: #0b7e4b;
+    color: #fff;
+  }
+  .history-header .badge-status.used {
+    background: #6b7280;
+    color: #fff;
+  }
+  body.dark-mode .history-header .badge-status.new {
+    background: #0b7e4b;
+  }
+  body.dark-mode .history-header .badge-status.used {
+    background: #6b7280;
+  }
+
+  .history-body {
+    padding: 1rem 1.2rem 1.2rem;
+  }
+  .history-body p {
+    margin: 0.2rem 0;
+    font-weight: 300;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+  .history-body p i {
+    color: var(--color-accent);
+    width: 1.2rem;
+    text-align: center;
+    margin-right: 0.2rem;
+  }
+  .history-body p strong {
+    font-weight: 400;
+    color: var(--text-primary);
+  }
+
+  @media (max-width: 480px) {
+    .history-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}

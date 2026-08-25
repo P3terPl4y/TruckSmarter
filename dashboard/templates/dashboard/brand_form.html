@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if object %}Editar{% else %}Crear{% endif %} Marca{% endblock %}
+
+{% block content %}
+<div class="container form-container">
+  <div class="form-card">
+    <h2><i class="fas fa-{% if object %}edit{% else %}plus-circle{% endif %}"></i>
+      {% if object %}Editar{% else %}Crear{% endif %} marca
+    </h2>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="form-group">
+        {{ form.as_p }}
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-hero">
+          <i class="fas fa-save"></i> Guardar
+        </button>
+        <a href="{% url 'dashboard:brand_list' %}" class="btn-outline-gold">
+          <i class="fas fa-times"></i> Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Eliminar usuario - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container confirm-container">
+  <div class="confirm-card">
+    <h2><i class="fas fa-exclamation-triangle"></i> Eliminar usuario</h2>
+    <p>¿Estás seguro de que quieres eliminar al usuario <strong>{{ object.username }}</strong>?</p>
+    <p class="text-muted">Esta acción no se puede deshacer.</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="confirm-actions">
+        <button type="submit" class="btn-hero" style="background:#d43737; border-color:#d43737;">
+          <i class="fas fa-trash"></i> Eliminar
+        </button>
+        <a href="{% url 'dashboard:user_list' %}" class="btn-outline-gold">
+          <i class="fas fa-times"></i> Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .confirm-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+  }
+  .confirm-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: var(--shadow-card);
+    text-align: center;
+  }
+  .confirm-card h2 {
+    font-weight: 300;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+  }
+  .confirm-card h2 i {
+    color: #d43737;
+    margin-right: 0.5rem;
+  }
+  .confirm-card p {
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+  .confirm-card .text-muted {
+    font-size: 0.85rem;
+  }
+  .confirm-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .confirm-actions .btn-hero {
+    background: #d43737;
+    border-color: #d43737;
+  }
+  .confirm-actions .btn-hero:hover {
+    background: #b32a2a;
+    border-color: #b32a2a;
+  }
+  .confirm-actions .btn-hero,
+  .confirm-actions .btn-outline-gold {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+</style>
+{% endblock %}

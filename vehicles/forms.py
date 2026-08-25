@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Vehicle, VehicleImage
+from .models import Vehicle, VehicleImage,Brand
 
 
 class VehicleForm(forms.ModelForm):
@@ -28,3 +28,9 @@ class VehicleImageForm(forms.ModelForm):
     class Meta:
         model = VehicleImage
         fields = ["image", "is_primary"]
+
+
+class BrandForm(forms.ModelForm):
+    class Meta:
+        model = Brand
+        fields = ["name", "logo"]

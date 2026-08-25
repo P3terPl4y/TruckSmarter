@@ -10,3 +10,6 @@ sqlparse==0.6.0
 whitenoise
 django-storages  # opcional, si usas S3
 boto3            # opcional, si usas S3
+coverage==7.6.1
+gunicorn==21.2.0
+django-redis==5.4.0  # si usas Redis

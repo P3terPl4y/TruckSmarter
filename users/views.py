@@ -1,7 +1,8 @@
 from django.contrib import messages
+from django.urls import reverse
 from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.mixins import (LoginRequiredMixin,
-                                        PermissionRequiredMixin)
+                                        UserPassesTestMixin)
 from django.contrib.auth.views import LoginView, LogoutView
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -26,14 +27,14 @@ def register(request):
     return render(request, "users/register.html", {"form": form})
 
 
-class UserListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+class UserListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = User
     template_name = "users/admin/user_list.html"
     context_object_name = "users"
     permission_required = "users.can_manage_users"
 
 
-class UserUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+class UserUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = User
     form_class = UserAdminForm
     template_name = "users/admin/user_form.html"
@@ -41,10 +42,16 @@ class UserUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     success_url = reverse_lazy("users:admin_list")
 
 
+# users/views.py
 class CustomLoginView(LoginView):
-    template_name = "users/login.html"
+    template_name = 'users/login.html'
     redirect_authenticated_user = True
 
+    def get_success_url(self):
+        user = self.request.user
+        if user.is_superuser or user.role == 'admin':
+            return reverse('dashboard:home')
+        return reverse('vehicles:list')
 
 class CustomLogoutView(LogoutView):
     next_page = "vehicles:list"

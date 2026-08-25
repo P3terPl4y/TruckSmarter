@@ -10,7 +10,7 @@ from core.mixins import OwnerOrAdminRequiredMixin, SellerRequiredMixin
 
 from .forms import VehicleForm
 from .models import Vehicle
-
+from django.shortcuts import redirect
 
 class VehicleListView(ListView):
     model = Vehicle
@@ -105,9 +105,14 @@ class VehicleUpdateView(LoginRequiredMixin, OwnerOrAdminRequiredMixin, UpdateVie
 
 class VehicleDeleteView(LoginRequiredMixin, OwnerOrAdminRequiredMixin, DeleteView):
     model = Vehicle
-    success_url = reverse_lazy("vehicles:list")
-    template_name = "vehicles/confirm_delete.html"
+    template_name = 'vehicles/confirm_delete.html'
+    success_url = reverse_lazy('vehicles:list')
 
     def delete(self, request, *args, **kwargs):
-        messages.success(request, "¡Vehículo eliminado exitosamente!")
-        return super().delete(request, *args, **kwargs)
+        """Soft delete: marcar como inactivo en lugar de eliminar."""
+        self.object = self.get_object()
+        self.object.is_active = False
+        self.object.sold = True  # Opcional
+        self.object.save()
+        messages.success(request, "Vehículo eliminado correctamente.")
+        return redirect(self.success_url)

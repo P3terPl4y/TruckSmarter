@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if object %}Editar{% else %}Crear{% endif %} Usuario{% endblock %}
+
+{% block content %}
+<div class="container form-container">
+  <div class="form-card">
+    <h2><i class="fas fa-{% if object %}edit{% else %}user-plus{% endif %}"></i>
+      {% if object %}Editar{% else %}Crear{% endif %} usuario
+    </h2>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        {{ form.as_p }}
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-hero">
+          <i class="fas fa-save"></i> Guardar
+        </button>
+        <a href="{% url 'dashboard:user_list' %}" class="btn-outline-gold">
+          <i class="fas fa-times"></i> Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Reutiliza los estilos de form.html */
+  .form-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 2rem 0;
+  }
+  .form-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    max-width: 700px;
+    width: 100%;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--transition);
+  }
+  .form-card:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+  .form-card h2 {
+    font-weight: 300;
+    font-size: 1.8rem;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+  }
+  .form-card h2 i {
+    color: var(--color-accent);
+    margin-right: 0.5rem;
+  }
+  .form-card .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  .form-card .form-group input,
+  .form-card .form-group select,
+  .form-card .form-group textarea {
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.8rem;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    width: 100%;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .form-card .form-group input:focus,
+  .form-card .form-group select:focus,
+  .form-card .form-group textarea:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(212,168,55,0.15);
+    outline: none;
+  }
+  body.dark-mode .form-card .form-group input,
+  body.dark-mode .form-card .form-group select,
+  body.dark-mode .form-card .form-group textarea {
+    background: var(--bg-card);
+  }
+  .form-card .form-group label {
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.1rem;
+  }
+  .form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .form-actions .btn-hero {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+  .form-actions .btn-outline-gold {
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  @media (max-width: 480px) {
+    .form-card {
+      padding: 1.5rem;
+    }
+    .form-actions {
+      flex-direction: column;
+    }
+    .form-actions .btn-hero,
+    .form-actions .btn-outline-gold {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %}
