@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container" style="padding-top: 2rem;">
+
+    <!-- Título -->
+    <div class="section-header" style="text-align: left; margin-top: 1rem;">
+        <h2 style="font-weight: 300; letter-spacing: 0.06em; color: var(--text-primary);">
+            📊 Panel de métricas de vistas
+        </h2>
+        <p style="color: var(--text-muted); font-weight: 300; letter-spacing: 0.04em;">
+            Resumen de actividad de los vehículos
+        </p>
+    </div>
+
+    <!-- Tarjetas de métricas -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin: 2rem 0;">
+        
+        <div style="background: var(--bg-card); backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-card); transition: all var(--transition);">
+            <div style="font-size: 2rem; color: var(--color-accent);">🚗</div>
+            <div style="font-weight: 300; font-size: 2.5rem; letter-spacing: 0.02em; color: var(--text-primary);">{{ total_vehicles }}</div>
+            <div style="color: var(--text-muted); font-weight: 300; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em;">Total vehículos</div>
+        </div>
+
+        <div style="background: var(--bg-card); backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-card); transition: all var(--transition);">
+            <div style="font-size: 2rem; color: var(--color-accent);">👁️</div>
+            <div style="font-weight: 300; font-size: 2.5rem; letter-spacing: 0.02em; color: var(--text-primary);">{{ total_views }}</div>
+            <div style="color: var(--text-muted); font-weight: 300; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em;">Total vistas</div>
+        </div>
+
+        <div style="background: var(--bg-card); backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-card); transition: all var(--transition);">
+            <div style="font-size: 2rem; color: var(--color-accent);">📈</div>
+            <div style="font-weight: 300; font-size: 2.5rem; letter-spacing: 0.02em; color: var(--text-primary);">{{ avg_views_per_vehicle }}</div>
+            <div style="color: var(--text-muted); font-weight: 300; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em;">Promedio por vehículo</div>
+        </div>
+
+    </div>
+
+    <!-- Tabla Top 10 -->
+    <div style="margin: 3rem 0;">
+        <h3 style="font-weight: 300; letter-spacing: 0.06em; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.6rem; display: flex; align-items: center; gap: 0.6rem;">
+            <span>🏆</span> Top 10 vehículos más vistos
+        </h3>
+
+        <div style="overflow-x: auto; margin-top: 1.5rem;">
+            <table style="width: 100%; border-collapse: separate; border-spacing: 0 8px;">
+                <thead>
+                    <tr style="color: var(--text-muted); font-weight: 300; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;">
+                        <th style="padding: 0.5rem 1rem; text-align: left;">#</th>
+                        <th style="padding: 0.5rem 1rem; text-align: left;">Vehículo</th>
+                        <th style="padding: 0.5rem 1rem; text-align: right;">Vistas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vehicle in top_vehicles %}
+                    <tr style="background: var(--bg-card); backdrop-filter: blur(8px); border: 1px solid var(--border-color); border-radius: var(--radius-lg); transition: all var(--transition);">
+                        <td style="padding: 0.8rem 1rem; border-radius: var(--radius-lg) 0 0 var(--radius-lg);">
+                            <span style="background: rgba(212, 168, 55, 0.15); border: 1px solid var(--color-accent); color: var(--color-accent); padding: 0.1rem 0.7rem; border-radius: 40px; font-size: 0.75rem;">{{ forloop.counter }}</span>
+                        </td>
+                        <td style="padding: 0.8rem 1rem;">
+                            <a href="{% url 'analytics:vehicle_stats' vehicle.pk %}" style="color: var(--text-primary); font-weight: 400; text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 0.2s;">
+                                {{ vehicle.brand.name }} {{ vehicle.model }}
+                            </a>
+                            <style>
+                                a:hover { border-bottom-color: var(--color-accent); }
+                            </style>
+                        </td>
+                        <td style="padding: 0.8rem 1rem; text-align: right; font-weight: 400; color: var(--color-accent);">
+                            {{ vehicle.view_count }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" style="padding: 2rem; text-align: center; color: var(--text-muted); font-weight: 300;">
+                            No hay vehículos con vistas registradas aún.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Botón volver -->
+    <div style="margin: 2rem 0 3rem;">
+        <a href="{% url 'vehicles:list' %}" style="display: inline-block; background: transparent; border: 1px solid var(--color-accent); color: var(--color-accent); padding: 0.5rem 1.8rem; border-radius: 40px; font-weight: 400; font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; transition: all 0.3s ease; cursor: pointer; text-decoration: none;">
+            ← Volver al catálogo
+        </a>
+    </div>
+
+</div>
+{% endblock %}
