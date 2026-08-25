@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "core",
     "sales",
     "dashboard",
+    "analytics",
     "crispy_forms",          # <--- Agregar
     "crispy_bootstrap5", 
 ]
@@ -166,10 +167,16 @@ LOGGING = {
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-# Cache configuration
+# Cache (usar Redis en producción)
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
     }
 }
+
+# Tiempo de expiración para evitar vistas duplicadas (en segundos)
+VIEW_EXPIRY_SECONDS = 86400  # 24 horas

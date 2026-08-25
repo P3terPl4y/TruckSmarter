@@ -11,6 +11,7 @@ from core.mixins import OwnerOrAdminRequiredMixin, SellerRequiredMixin
 from .forms import VehicleForm
 from .models import Vehicle
 from django.shortcuts import redirect
+from analytics.mixins import TrackVehicleViewMixin
 
 class VehicleListView(ListView):
     model = Vehicle
@@ -53,7 +54,7 @@ class VehicleListView(ListView):
         return qs
 
 
-class VehicleDetailView(DetailView):
+class VehicleDetailView(TrackVehicleViewMixin,DetailView):
     model = Vehicle
     template_name = "vehicles/detail.html"
 
