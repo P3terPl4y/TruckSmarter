@@ -7,6 +7,7 @@ from vehicles.models import Vehicle
 class Sale(models.Model):
     STATUS_CHOICES = (
         ("pending", "Pendiente"),
+        ("reserved", "Reservado"), 
         ("completed", "Completada"),
         ("cancelled", "Cancelada"),
     )

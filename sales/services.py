@@ -94,3 +94,64 @@ def send_email(subject, template_name, context, to, from_email=None):
     except Exception as e:
         logger.error(f"Error al enviar email a {', '.join(to)}: {str(e)}")
         # No lanzamos excepción para no interrumpir la compra
+def send_reservation_notifications(vehicle, buyer, admin_user, sale):
+    """
+    Envía email de confirmación al comprador y notificación al admin.
+    """
+    context = {
+        'vehicle': {
+            'brand': vehicle.brand.name,
+            'model': vehicle.model,
+            'year': vehicle.year,
+            'price': vehicle.price,
+        },
+        'buyer': {
+            'full_name': buyer.get_full_name() or buyer.username,
+            'email': buyer.email,
+            'phone': buyer.profile.phone if hasattr(buyer, 'profile') else 'No especificado',
+        },
+        'sale_id': sale.id,
+        'sale_date': sale.created_at,
+        'site_name': 'TruckSmarter',
+        'site_url': 'https://tudominio.com',  # Cambiar por tu dominio
+    }
+
+    # Email para el comprador (confirmación)
+    send_email(
+        subject=f'Reserva confirmada: {vehicle.brand.name} {vehicle.model}',
+        template_name='emails/reservation_confirmation.html',
+        context=context,
+        to=[buyer.email],
+        from_email=settings.DEFAULT_FROM_EMAIL,
+    )
+
+    # Email para el admin (notificación)
+    if admin_user:
+        send_email(
+            subject=f'Nueva reserva: {vehicle.brand.name} {vehicle.model}',
+            template_name='emails/admin_reservation_notification.html',
+            context=context,
+            to=[admin_user.email],
+            from_email=settings.DEFAULT_FROM_EMAIL,
+        )
+def send_cancellation_notification(vehicle, user):
+    context = {
+        'vehicle': {
+            'brand': vehicle.brand.name,
+            'model': vehicle.model,
+            'year': vehicle.year,
+        },
+        'user': {
+            'full_name': user.get_full_name() or user.username,
+            'email': user.email,
+        },
+        'site_name': 'TruckSmarter',
+        'site_url': 'https://tudominio.com',
+    }
+    send_email(
+        subject=f'Reserva cancelada: {vehicle.brand.name} {vehicle.model}',
+        template_name='emails/reservation_cancelled.html',
+        context=context,
+        to=[user.email],
+        from_email=settings.DEFAULT_FROM_EMAIL,
+    )
