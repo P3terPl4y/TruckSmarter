@@ -13,5 +13,4 @@ urlpatterns = [
     ),
     path("logout/", views.logout_view, name="logout"),
     path("profile/", views.ProfileView.as_view(), name="profile"),
-    path("change-role/", views.ChangeRoleView.as_view(), name="change_role"),
 ]

@@ -6,18 +6,10 @@ from .models import Profile, User
 
 class CustomUserCreationForm(UserCreationForm):
     email = forms.EmailField(required=True)
-    role = forms.ChoiceField(
-        choices=[
-            ("customer", "Usuario"),
-            ("seller", "Comerciante"),
-        ],
-        initial="customer",
-        widget=forms.Select,
-    )
 
     class Meta:
         model = User
-        fields = ("username", "email", "password1", "password2", "role")
+        fields = ("username", "email", "password1", "password2")
 
     def save(self, commit=True):
         user = super().save(commit=False)

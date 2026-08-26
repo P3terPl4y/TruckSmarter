@@ -1,0 +1,5 @@
+<h2>Nueva reserva</h2>
+<p>El usuario {{ buyer.full_name }} ({{ buyer.email }}) ha reservado el vehículo {{ vehicle.brand }} {{ vehicle.model }} ({{ vehicle.year }}) por ${{ vehicle.price }}.</p>
+<p>ID de reserva: #{{ sale_id }}</p>
+<p>Fecha: {{ sale_date|date:"d/m/Y H:i" }}</p>
+<p>Puedes gestionar esta reserva desde el panel de administración.</p>

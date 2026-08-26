@@ -103,7 +103,7 @@ class ProfileViewTest(TestCase):
             username='testuser',
             email='test@example.com',
             password='testpass123',
-            role='seller'
+            role='admin'
         )
        
 
@@ -138,38 +138,3 @@ class ProfileViewTest(TestCase):
         self.assertEqual(self.user.profile.phone, '123456789')
 
 
-class ChangeRoleViewTest(TestCase):
-    """Pruebas para ChangeRoleView."""
-
-    def setUp(self):
-        self.client = Client()
-        self.customer = User.objects.create_user(
-            username='customer',
-            email='customer@test.com',
-            password='testpass123',
-            role='customer'
-        )
-        
-        self.seller = User.objects.create_user(
-            username='seller',
-            email='seller@test.com',
-            password='testpass123',
-            role='seller'
-        )
-        
-
-    def test_change_role_customer_to_seller(self):
-        """Verifica que un cliente pueda convertirse en comerciante."""
-        self.client.force_login(self.customer)
-        response = self.client.post(reverse('users:change_role'))
-        self.assertEqual(response.status_code, 302)
-        self.customer.refresh_from_db()
-        self.assertEqual(self.customer.role, 'seller')
-
-    def test_change_role_seller_unchanged(self):
-        """Verifica que un comerciante siga siendo comerciante."""
-        self.client.force_login(self.seller)
-        response = self.client.post(reverse('users:change_role'))
-        self.assertEqual(response.status_code, 302)
-        self.seller.refresh_from_db()
-        self.assertEqual(self.seller.role, 'seller')

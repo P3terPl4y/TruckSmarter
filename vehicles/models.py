@@ -47,7 +47,14 @@ class Vehicle(models.Model):
     )
     is_active = models.BooleanField(default=True)
     sold = models.BooleanField(default=False)
-	    # ... tus campos existentes ...
+    reserved = models.BooleanField(default=False)
+    reserved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reserved_vehicles'
+    )
     view_count = models.PositiveIntegerField(default=0)
     
     
