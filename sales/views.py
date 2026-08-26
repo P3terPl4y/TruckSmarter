@@ -97,19 +97,18 @@ def cancel_reservation(request, vehicle_id):
     # Obtener administrador
     admin_user = get_admin_user()
 
-    # Enviar email de cancelación al comprador
-    try:
-        send_cancellation_notification(vehicle, request.user)
-    except Exception as e:
-        logger.error(f"Error al enviar email de cancelación al comprador: {e}")
-
     # Enviar email de cancelación al administrador
     if admin_user:
         try:
             send_admin_cancellation_notification(vehicle, request.user, admin_user)
         except Exception as e:
             logger.error(f"Error al enviar email de cancelación al admin: {e}")
-
+    # Enviar email de cancelación al comprador
+    try:
+        send_cancellation_notification(vehicle, request.user)
+    except Exception as e:
+        logger.error(f"Error al enviar email de cancelación al comprador: {e}")
+        
     messages.info(request, f"Has cancelado la reserva de {vehicle.brand.name} {vehicle.model}.")
     return redirect("vehicles:detail", pk=vehicle_id)
 

@@ -39,17 +39,7 @@ def send_reservation_notifications(vehicle, buyer, admin_user, sale):
         'site_name': 'TruckSmarter',
         'site_url': 'https://tudominio.com',  # Cambiar por tu dominio
     }
-
-    # 1. Email para el comprador (confirmación de reserva)
-    send_email(
-        subject=f'Reserva confirmada: {vehicle_details["brand"]} {vehicle_details["model"]}',
-        template_name='emails/reservation_confirmation.html',
-        context=context,
-        to=[buyer.email],
-        from_email=settings.DEFAULT_FROM_EMAIL,
-    )
-
-    # 2. Email para el administrador (notificación de nueva reserva)
+    # 1. Email para el administrador (notificación de nueva reserva)
     if admin_user:
         send_email(
             subject=f'Nueva reserva: {vehicle_details["brand"]} {vehicle_details["model"]}',
@@ -58,6 +48,16 @@ def send_reservation_notifications(vehicle, buyer, admin_user, sale):
             to=[admin_user.email],
             from_email=settings.DEFAULT_FROM_EMAIL,
         )
+    # 2. Email para el comprador (confirmación de reserva)
+    send_email(
+        subject=f'Reserva confirmada: {vehicle_details["brand"]} {vehicle_details["model"]}',
+        template_name='emails/reservation_confirmation.html',
+        context=context,
+        to=[buyer.email],
+        from_email=settings.DEFAULT_FROM_EMAIL,
+    )
+
+    
 
 def send_email(subject, template_name, context, to, from_email=None):
     """
