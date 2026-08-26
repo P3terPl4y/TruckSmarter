@@ -16,7 +16,7 @@ class SaleModelTest(TestCase):
             username='seller',
             email='seller@test.com',
             password='testpass123',
-            role='seller'
+            role='admin'
         )
        
         self.buyer = User.objects.create_user(
@@ -68,7 +68,7 @@ class PurchaseViewTest(TestCase):
             username='seller',
             email='seller@test.com',
             password='testpass123',
-            role='seller'
+            role='admin'
         )
        
         self.buyer = User.objects.create_user(
@@ -138,7 +138,7 @@ class PurchaseHistoryTest(TestCase):
             username='seller',
             email='seller@test.com',
             password='testpass123',
-            role='seller'
+            role='admin'
         )
         
         self.buyer = User.objects.create_user(

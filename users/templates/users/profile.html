@@ -124,25 +124,7 @@
       </div>
 
       <!-- Cambio de rol (solo si es cliente) -->
-      {% if user.role == 'customer' %}
-      <div class="info-card border-accent">
-        <div class="card-body-custom">
-          <div class="role-upgrade">
-            <i class="fas fa-rocket"></i>
-            <div>
-              <h6>¿Quieres vender vehículos?</h6>
-              <p class="text-muted">Conviértete en comerciante y comienza a publicar tus vehículos.</p>
-              <form action="{% url 'users:change_role' %}" method="post">
-                {% csrf_token %}
-                <button type="submit" class="btn-outline-gold">
-                  <i class="fas fa-arrow-up"></i> Convertirme en comerciante
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-      {% endif %}
+     
 
       <!-- Mis vehículos (comerciantes y admins) -->
       {% if user.role == 'seller' or user.role == 'admin' %}

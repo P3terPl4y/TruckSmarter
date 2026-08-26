@@ -6,7 +6,7 @@ from django.urls import reverse_lazy
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
 
-from core.mixins import OwnerOrAdminRequiredMixin, SellerRequiredMixin
+from core.mixins import OwnerOrAdminRequiredMixin, AdminRequiredMixin
 
 from .forms import VehicleForm
 from .models import Vehicle
@@ -69,7 +69,7 @@ class VehicleDetailView(TrackVehicleViewMixin,DetailView):
         return context
 
 
-class VehicleCreateView(LoginRequiredMixin, SellerRequiredMixin, CreateView):
+class VehicleCreateView(LoginRequiredMixin, AdminRequiredMixin, CreateView):
     model = Vehicle
     form_class = VehicleForm
     template_name = "vehicles/form.html"
@@ -87,7 +87,7 @@ class VehicleCreateView(LoginRequiredMixin, SellerRequiredMixin, CreateView):
         return super().form_invalid(form)
 
 
-class VehicleUpdateView(LoginRequiredMixin, OwnerOrAdminRequiredMixin, UpdateView):
+class VehicleUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateView):
     model = Vehicle
     form_class = VehicleForm
     template_name = "vehicles/form.html"

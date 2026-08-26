@@ -16,7 +16,7 @@ class VehicleModelTest(TestCase):
             username='seller',
             email='seller@test.com',
             password='testpass123',
-            role='seller'
+            role='admin'
         )
         self.vehicle = Vehicle.objects.create(
             brand=self.brand,
@@ -70,7 +70,7 @@ class VehicleListViewTest(TestCase):
             username='seller',
             email='seller@test.com',
             password='testpass123',
-            role='seller'
+            role='admin'
         )
         self.vehicle = Vehicle.objects.create(
             brand=self.brand,
@@ -119,7 +119,7 @@ class VehicleCreateViewTest(TestCase):
             username='seller',
             email='seller@test.com',
             password='testpass123',
-            role='seller'
+            role='admin'
         )
         self.customer = User.objects.create_user(
             username='customer',
@@ -169,14 +169,14 @@ class VehicleUpdateViewTest(TestCase):
             username='owner',
             email='owner@test.com',
             password='testpass123',
-            role='seller'
+            role='admin'
         )
         
         self.other_user = User.objects.create_user(
             username='other',
             email='other@test.com',
             password='testpass123',
-            role='seller'
+            role='admin'
         )
         
         self.admin_user = User.objects.create_superuser(
@@ -260,14 +260,14 @@ class VehicleDeleteViewTest(TestCase):
             username='owner',
             email='owner@test.com',
             password='testpass123',
-            role='seller'
+            role='admin'
         )
        
         self.other_user = User.objects.create_user(
             username='other',
             email='other@test.com',
             password='testpass123',
-            role='seller'
+            role='admin'
         )
         
         self.vehicle = Vehicle.objects.create(
