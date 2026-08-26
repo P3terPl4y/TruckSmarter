@@ -22,10 +22,12 @@ def register(request):
             login(request, user)
             messages.success(request, "Registro exitoso. Bienvenido!")
             return redirect("vehicles:list")
+        else:
+            # Si el formulario no es válido, los errores se mostrarán en la plantilla
+            messages.error(request, "Por favor corrige los errores del formulario.")
     else:
         form = CustomUserCreationForm()
     return render(request, "users/register.html", {"form": form})
-
 
 class UserListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = User

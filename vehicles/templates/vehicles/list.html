@@ -41,8 +41,19 @@
       <div class="card-body">
         <div class="card-title">
           {{ vehicle.brand.name }} {{ vehicle.model }}
-          <span class="badge-status {% if vehicle.status == 'new' %}new{% else %}used{% endif %}">
-            {{ vehicle.get_status_display }}
+          <!-- Etiqueta de estado -->
+          <span class="badge-status 
+            {% if vehicle.sold %}sold
+            {% elif vehicle.reserved %}reserved
+            {% elif vehicle.status == 'new' %}new
+            {% else %}used{% endif %}">
+            {% if vehicle.sold %}
+              Vendido
+            {% elif vehicle.reserved %}
+              Reservado
+            {% else %}
+              {{ vehicle.get_status_display }}
+            {% endif %}
           </span>
         </div>
         <div class="card-sub">

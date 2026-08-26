@@ -40,8 +40,9 @@ INSTALLED_APPS = [
     "sales",
     "dashboard",
     "analytics",
-    "crispy_forms",          # <--- Agregar
-    "crispy_bootstrap5", 
+    "crispy_forms",     
+    "crispy_bootstrap5",
+    'sslserver', 
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

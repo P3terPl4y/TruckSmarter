@@ -1,0 +1,6 @@
+<h2>Reserva confirmada</h2>
+<p>Hola {{ buyer.full_name }},</p>
+<p>Has reservado el vehículo {{ vehicle.brand }} {{ vehicle.model }} ({{ vehicle.year }}) por ${{ vehicle.price }}.</p>
+<p>El administrador se pondrá en contacto contigo para completar la compra.</p>
+<p>ID de reserva: #{{ sale_id }}</p>
+<p>Fecha: {{ sale_date|date:"d/m/Y H:i" }}</p>

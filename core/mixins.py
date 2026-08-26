@@ -1,7 +1,7 @@
 # core/mixins.py
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
-
+'''
 class SellerRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         user = self.request.user
@@ -12,7 +12,7 @@ class SellerRequiredMixin(UserPassesTestMixin):
             raise PermissionDenied("Necesitas ser comerciante o administrador para realizar esta acción.")
         return super().handle_no_permission()
 
-
+'''
 class AdminRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         user = self.request.user

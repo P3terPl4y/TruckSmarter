@@ -29,6 +29,19 @@
         <form method="post" id="profile-form">
           {% csrf_token %}
 
+          <!-- Mostrar errores del formulario -->
+          {% if form.errors %}
+            <div class="form-errors">
+              <ul>
+                {% for field, errors in form.errors.items %}
+                  {% for error in errors %}
+                    <li><strong>{{ field|capfirst }}:</strong> {{ error }}</li>
+                  {% endfor %}
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+
           <!-- Datos del usuario -->
           <div class="form-row">
             <div class="form-group">
@@ -66,7 +79,7 @@
 
           <hr>
 
-          <!-- Datos de pago -->
+          <!-- Datos de pago (comentados) 
           <h6><i class="fas fa-credit-card"></i> Datos de pago</h6>
           <div class="form-row">
             <div class="form-group">
@@ -83,6 +96,7 @@
               {{ form.bank_account }}
             </div>
           </div>
+          -->
 
           <div class="form-actions">
             <button type="submit" class="btn-hero" id="profile-submit">
@@ -123,29 +137,8 @@
         </div>
       </div>
 
-      <!-- Cambio de rol (solo si es cliente) -->
-      {% if user.role == 'customer' %}
-      <div class="info-card border-accent">
-        <div class="card-body-custom">
-          <div class="role-upgrade">
-            <i class="fas fa-rocket"></i>
-            <div>
-              <h6>¿Quieres vender vehículos?</h6>
-              <p class="text-muted">Conviértete en comerciante y comienza a publicar tus vehículos.</p>
-              <form action="{% url 'users:change_role' %}" method="post">
-                {% csrf_token %}
-                <button type="submit" class="btn-outline-gold">
-                  <i class="fas fa-arrow-up"></i> Convertirme en comerciante
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-      {% endif %}
-
-      <!-- Mis vehículos (comerciantes y admins) -->
-      {% if user.role == 'seller' or user.role == 'admin' %}
+      <!-- Mis vehículos (solo administradores) -->
+      {% if user.role == 'admin' %}
       <div class="info-card">
         <div class="card-header-custom">
           <div class="header-actions">
@@ -172,6 +165,8 @@
                     <span class="price">${{ vehicle.price }}</span>
                     {% if vehicle.sold %}
                       <span class="badge-sold">Vendido</span>
+                    {% elif vehicle.reserved %}
+                      <span class="badge-sold" style="background:#f0ad4e; color:#fff;">Reservado</span>
                     {% endif %}
                   </div>
                   <div class="vehicle-actions">
@@ -444,6 +439,28 @@
   .info-row span {
     font-weight: 300;
     color: var(--text-secondary);
+  }
+
+  /* Errores del formulario */
+  .form-errors {
+    background: rgba(212, 55, 55, 0.08);
+    border: 1px solid #d43737;
+    border-radius: var(--radius-sm);
+    padding: 0.8rem 1.2rem;
+    margin-bottom: 1.2rem;
+    color: #d43737;
+  }
+  .form-errors ul {
+    margin: 0;
+    padding-left: 1.2rem;
+  }
+  .form-errors ul li {
+    margin: 0.2rem 0;
+  }
+  body.dark-mode .form-errors {
+    background: rgba(212, 55, 55, 0.15);
+    border-color: #f87171;
+    color: #f87171;
   }
 
   /* Cambio de rol */

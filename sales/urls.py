@@ -5,6 +5,7 @@ from . import views
 app_name = "sales"
 
 urlpatterns = [
-    path("purchase/<int:vehicle_id>/", views.purchase_vehicle, name="purchase"),
+    path("reserve/<int:vehicle_id>/", views.reserve_vehicle, name="reserve"),
+    path('cancel-reservation/<int:vehicle_id>/', views.cancel_reservation, name='cancel_reservation'),
     path("history/", views.purchase_history, name="history"),
 ]

@@ -39,16 +39,34 @@
         <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
           <i class="fas fa-check-circle"></i> Vehículo vendido
         </div>
+      {% elif vehicle.reserved %}
+        {% if user.is_authenticated and user == vehicle.reserved_by %}
+          <!-- El usuario que reservó puede cancelar -->
+          <form method="post" action="{% url 'sales:cancel_reservation' vehicle.pk %}" style="width:100%;">
+            {% csrf_token %}
+            <button type="submit" class="btn-hero" style="background:#d43737; border-color:#d43737; width:100%;">
+              <i class="fas fa-times-circle"></i> Cancelar reserva
+            </button>
+          </form>
+        {% else %}
+          <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
+            <i class="fas fa-clock"></i> Reservado
+          </div>
+        {% endif %}
       {% elif user.is_authenticated and user != vehicle.created_by %}
-        <button class="btn-hero" data-bs-toggle="modal" data-bs-target="#purchaseModal">
-          <i class="fas fa-shopping-cart"></i> Comprar ahora
-        </button>
+        <!-- Botón para reservar -->
+        <form method="post" action="{% url 'sales:reserve' vehicle.pk %}" style="width:100%;">
+          {% csrf_token %}
+          <button type="submit" class="btn-hero" style="width:100%;">
+            <i class="fas fa-calendar-check"></i> Reservar ahora
+          </button>
+        </form>
       {% elif user == vehicle.created_by %}
         <p style="color: var(--text-muted); width:100%;">
           Este vehículo es tuyo. Puedes <a href="{% url 'vehicles:update' vehicle.pk %}" style="color:var(--color-accent);">editarlo</a> o <a href="{% url 'vehicles:delete' vehicle.pk %}" style="color:var(--color-accent);">eliminarlo</a>.
         </p>
       {% else %}
-        <p style="color: var(--text-muted); width:100%;">Inicia sesión para comprar este vehículo.</p>
+        <p style="color: var(--text-muted); width:100%;">Inicia sesión para reservar este vehículo.</p>
       {% endif %}
     </div>
 
@@ -62,35 +80,4 @@
     </div>
   </div>
 </div>
-
-<!-- ========== MODAL DE COMPRA ========== -->
-{% if not vehicle.sold and user.is_authenticated and user != vehicle.created_by %}
-<div class="modal fade" id="purchaseModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form method="post" action="{% url 'sales:purchase' vehicle.pk %}">
-        {% csrf_token %}
-        <div class="modal-header">
-          <h5 class="modal-title">Confirmar compra</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <h4>{{ vehicle.brand.name }} {{ vehicle.model }}</h4>
-          <p><strong>Precio:</strong> ${{ vehicle.price }}</p>
-          <hr>
-          <h5>Datos del vendedor</h5>
-          <p><strong>Nombre:</strong> {{ vehicle.created_by.get_full_name|default:vehicle.created_by.username }}</p>
-          <p><strong>Email:</strong> {{ vehicle.created_by.email }}</p>
-          <p><strong>Teléfono:</strong> {{ vehicle.created_by.profile.phone|default:"No especificado" }}</p>
-          <p><strong>Dirección:</strong> {{ vehicle.created_by.profile.address|default:"No especificada" }}</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn-hero" style="width:auto;">Confirmar compra</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-{% endif %}
 {% endblock %}
