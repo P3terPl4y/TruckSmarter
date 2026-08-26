@@ -7,8 +7,20 @@ from django.urls import reverse
 from vehicles.models import Vehicle
 from .models import Sale
 from django.shortcuts import get_object_or_404, redirect
-from .services import send_reservation_notifications, send_cancellation_notification
+from .services import send_reservation_notifications, send_cancellation_notification, send_admin_cancellation_notification
+from django.contrib.auth import get_user_model
+import logging
 
+User = get_user_model()
+logger = logging.getLogger(__name__)
+
+def get_admin_user():
+    """Obtiene el primer superusuario o usuario con role='admin'."""
+    admin = User.objects.filter(is_superuser=True).first()
+    if not admin:
+        admin = User.objects.filter(role='admin').first()
+    return admin
+    
 @login_required
 @transaction.atomic
 def reserve_vehicle(request, vehicle_id):
@@ -20,12 +32,11 @@ def reserve_vehicle(request, vehicle_id):
         reserved=False,
     )
 
-    # No permitir reservar propio vehículo
     if vehicle.created_by == request.user:
         messages.error(request, "No puedes reservar tu propio vehículo.")
         return redirect("vehicles:detail", pk=vehicle_id)
 
-    # Crear la venta con estado "reserved"
+    # Crear la venta
     sale = Sale.objects.create(
         vehicle=vehicle,
         buyer=request.user,
@@ -41,16 +52,24 @@ def reserve_vehicle(request, vehicle_id):
     vehicle.reserved_by = request.user
     vehicle.save()
 
+    # Obtener administrador
+    admin_user = get_admin_user()
+
     # Enviar notificaciones
     try:
-        send_reservation_notifications(vehicle, request.user, sale)
+        send_reservation_notifications(
+            vehicle=vehicle,
+            buyer=request.user,
+            admin_user=admin_user,
+            sale=sale
+        )
     except Exception as e:
-        # Loguear error pero no interrumpir
-        pass
+        logger.error(f"Error al enviar email de reserva: {e}")
+        # No interrumpir el flujo
 
     messages.success(
         request,
-        f"¡Vehículo reservado! {vehicle.brand.name} {vehicle.model} ha sido reservado. Recibirás un email de confirmación."
+        f"¡Vehículo reservado! {vehicle.brand.name} {vehicle.model} ha sido reservado."
     )
     return redirect("vehicles:detail", pk=vehicle_id)
 
@@ -75,25 +94,25 @@ def cancel_reservation(request, vehicle_id):
     vehicle.reserved_by = None
     vehicle.save()
 
-    # Enviar email de cancelación
+    # Obtener administrador
+    admin_user = get_admin_user()
+
+    # Enviar email de cancelación al comprador
     try:
         send_cancellation_notification(vehicle, request.user)
     except Exception as e:
-        pass
+        logger.error(f"Error al enviar email de cancelación al comprador: {e}")
+
+    # Enviar email de cancelación al administrador
+    if admin_user:
+        try:
+            send_admin_cancellation_notification(vehicle, request.user, admin_user)
+        except Exception as e:
+            logger.error(f"Error al enviar email de cancelación al admin: {e}")
 
     messages.info(request, f"Has cancelado la reserva de {vehicle.brand.name} {vehicle.model}.")
     return redirect("vehicles:detail", pk=vehicle_id)
-@login_required
-@transaction.atomic
 
-def get_admin_user():
-    """Obtiene el primer superusuario o usuario con role='admin'."""
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-    admin = User.objects.filter(is_superuser=True).first()
-    if not admin:
-        admin = User.objects.filter(role='admin').first()
-    return admin
 @login_required
 def purchase_history(request):
     """Ver historial de compras del usuario."""

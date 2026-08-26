@@ -7,27 +7,22 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def send_purchase_notifications(vehicle, buyer, seller, sale):
+# sales/services.py
+
+def send_reservation_notifications(vehicle, buyer, admin_user, sale):
     """
-    Envía emails de confirmación al comprador y al vendedor después de una compra.
-    
-    Args:
-        vehicle: Objeto Vehicle vendido
-        buyer: Objeto User comprador
-        seller: Objeto User vendedor
-        sale: Objeto Sale creado
+    Envía email de confirmación al comprador y notificación al administrador.
     """
-    
     # Datos del vehículo
     vehicle_details = {
         'brand': vehicle.brand.name,
         'model': vehicle.model,
         'year': vehicle.year,
         'price': vehicle.price,
-        'description': vehicle.description[:200],  # Resumen
+        'description': vehicle.description[:200],
     }
     
-    # Datos del comprador (para el vendedor)
+    # Datos del comprador
     buyer_details = {
         'full_name': buyer.get_full_name() or buyer.username,
         'email': buyer.email,
@@ -35,42 +30,34 @@ def send_purchase_notifications(vehicle, buyer, seller, sale):
         'address': buyer.profile.address if hasattr(buyer, 'profile') else 'No especificada',
     }
     
-    # Datos del vendedor (para el comprador)
-    seller_details = {
-        'full_name': seller.get_full_name() or seller.username,
-        'email': seller.email,
-        'phone': seller.profile.phone if hasattr(seller, 'profile') else 'No especificado',
-        'address': seller.profile.address if hasattr(seller, 'profile') else 'No especificada',
-    }
-    
     context = {
         'vehicle': vehicle_details,
         'buyer': buyer_details,
-        'seller': seller_details,
         'sale_id': sale.id,
         'sale_amount': sale.amount,
         'sale_date': sale.created_at,
         'site_name': 'TruckSmarter',
-        'site_url': 'http://localhost:8000',  # En producción, usar variable de entorno
+        'site_url': 'https://tudominio.com',  # Cambiar por tu dominio
     }
-    
-    # 1. Email para el comprador (confirmación)
+
+    # 1. Email para el comprador (confirmación de reserva)
     send_email(
-        subject=f'¡Compra confirmada! Has comprado {vehicle_details["brand"]} {vehicle_details["model"]}',
-        template_name='emails/purchase_confirmation.html',
+        subject=f'Reserva confirmada: {vehicle_details["brand"]} {vehicle_details["model"]}',
+        template_name='emails/reservation_confirmation.html',
         context=context,
         to=[buyer.email],
         from_email=settings.DEFAULT_FROM_EMAIL,
     )
-    
-    # 2. Email para el vendedor (notificación de venta)
-    send_email(
-        subject=f'¡Tu vehículo ha sido vendido! {vehicle_details["brand"]} {vehicle_details["model"]}',
-        template_name='emails/sale_notification.html',
-        context=context,
-        to=[seller.email],
-        from_email=settings.DEFAULT_FROM_EMAIL,
-    )
+
+    # 2. Email para el administrador (notificación de nueva reserva)
+    if admin_user:
+        send_email(
+            subject=f'Nueva reserva: {vehicle_details["brand"]} {vehicle_details["model"]}',
+            template_name='emails/admin_reservation_notification.html',
+            context=context,
+            to=[admin_user.email],
+            from_email=settings.DEFAULT_FROM_EMAIL,
+        )
 
 def send_email(subject, template_name, context, to, from_email=None):
     """
@@ -94,46 +81,7 @@ def send_email(subject, template_name, context, to, from_email=None):
     except Exception as e:
         logger.error(f"Error al enviar email a {', '.join(to)}: {str(e)}")
         # No lanzamos excepción para no interrumpir la compra
-def send_reservation_notifications(vehicle, buyer, admin_user, sale):
-    """
-    Envía email de confirmación al comprador y notificación al admin.
-    """
-    context = {
-        'vehicle': {
-            'brand': vehicle.brand.name,
-            'model': vehicle.model,
-            'year': vehicle.year,
-            'price': vehicle.price,
-        },
-        'buyer': {
-            'full_name': buyer.get_full_name() or buyer.username,
-            'email': buyer.email,
-            'phone': buyer.profile.phone if hasattr(buyer, 'profile') else 'No especificado',
-        },
-        'sale_id': sale.id,
-        'sale_date': sale.created_at,
-        'site_name': 'TruckSmarter',
-        'site_url': 'https://tudominio.com',  # Cambiar por tu dominio
-    }
 
-    # Email para el comprador (confirmación)
-    send_email(
-        subject=f'Reserva confirmada: {vehicle.brand.name} {vehicle.model}',
-        template_name='emails/reservation_confirmation.html',
-        context=context,
-        to=[buyer.email],
-        from_email=settings.DEFAULT_FROM_EMAIL,
-    )
-
-    # Email para el admin (notificación)
-    if admin_user:
-        send_email(
-            subject=f'Nueva reserva: {vehicle.brand.name} {vehicle.model}',
-            template_name='emails/admin_reservation_notification.html',
-            context=context,
-            to=[admin_user.email],
-            from_email=settings.DEFAULT_FROM_EMAIL,
-        )
 def send_cancellation_notification(vehicle, user):
     context = {
         'vehicle': {
@@ -153,5 +101,26 @@ def send_cancellation_notification(vehicle, user):
         template_name='emails/reservation_cancelled.html',
         context=context,
         to=[user.email],
+        from_email=settings.DEFAULT_FROM_EMAIL,
+    )
+def send_admin_cancellation_notification(vehicle, user, admin_user):
+    context = {
+        'vehicle': {
+            'brand': vehicle.brand.name,
+            'model': vehicle.model,
+            'year': vehicle.year,
+        },
+        'user': {
+            'full_name': user.get_full_name() or user.username,
+            'email': user.email,
+        },
+        'site_name': 'TruckSmarter',
+        'site_url': 'https://tudominio.com',
+    }
+    send_email(
+        subject=f'Reserva cancelada por {user.get_full_name() or user.username}: {vehicle.brand.name} {vehicle.model}',
+        template_name='emails/admin_reservation_cancelled.html',
+        context=context,
+        to=[admin_user.email],
         from_email=settings.DEFAULT_FROM_EMAIL,
     )
