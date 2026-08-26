@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-
+from django.core.exceptions import ValidationError
 from .models import Profile, User
 
 
@@ -10,7 +10,15 @@ class CustomUserCreationForm(UserCreationForm):
     class Meta:
         model = User
         fields = ("username", "email", "password1", "password2")
-
+    
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email:
+            email = email.lower()  # Normalizar a minúsculas
+            if User.objects.filter(email__iexact=email).exists():
+                raise ValidationError("Este correo electrónico ya está registrado.")
+        return email
+    
     def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data["email"]
@@ -36,7 +44,21 @@ class ProfileForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ("username", "email", "first_name", "last_name")
-
+        
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email:
+            email = email.lower()
+            # Excluir al propio usuario de la consulta (cuando se edita)
+            if self.instance and self.instance.pk:
+                if User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
+                    raise ValidationError("Este correo electrónico ya está registrado por otro usuario.")
+            else:
+                # Caso de creación (aunque no se usa aquí)
+                if User.objects.filter(email__iexact=email).exists():
+                    raise ValidationError("Este correo electrónico ya está registrado.")
+        return email
+        
     def save(self, commit=True):
         user = super().save(commit=commit)
         profile, created = Profile.objects.get_or_create(user=user)
