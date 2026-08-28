@@ -25,6 +25,7 @@ def send_offer_notifications(vehicle, buyer, admin_user, sale):
                 "email": buyer.email,
             },
             "offered_price": sale.offered_price,
+            "comment": sale.notes,  # <-- Añadir comentario
             "site_name": "TruckSmarter",
         },
         to=[buyer.email],
@@ -46,12 +47,12 @@ def send_offer_notifications(vehicle, buyer, admin_user, sale):
                     "email": buyer.email,
                 },
                 "offered_price": sale.offered_price,
+                "comment": sale.notes,  # <-- Añadir comentario
                 "sale_id": sale.id,
                 "site_url": "https://tudominio.com",
             },
             to=[admin_user.email],
         )
-
 
 def send_offer_accepted_notification(sale):
     send_email(

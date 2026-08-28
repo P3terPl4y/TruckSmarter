@@ -14,6 +14,10 @@ from django_ratelimit.decorators import ratelimit
 from .forms import CustomUserCreationForm, ProfileForm, UserAdminForm
 from .models import EmailVerification, Profile, User
 from .services import send_verification_email
+from django_ratelimit.exceptions import Ratelimited
+from django.http import HttpResponse
+# y usar HttpResponse("...", status=429)
+
 
 User = get_user_model()
 
@@ -62,19 +66,19 @@ class UserUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     success_url = reverse_lazy("users:admin_list")
 
 
+
+
 class CustomLoginView(LoginView):
-    template_name = "users/login.html"
+    template_name = 'users/login.html'
     redirect_authenticated_user = True
 
-    @method_decorator(ratelimit(key="ip", rate="5/m", method="POST", block=True))
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def dispatch(self, request, *args, **kwargs):
-        if getattr(request, "limited", False):
-            return HttpResponseTooManyRequests(
-                "Demasiados intentos de inicio de sesión. Intenta de nuevo en un minuto."
-            )
-
-        return super().dispatch(request, *args, **kwargs)
-
+        try:
+            return super().dispatch(request, *args, **kwargs)
+        except Ratelimited:
+            return HttpResponse("Demasiados intentos. Intenta de nuevo en un minuto.", status=429)
+            
     def get_success_url(self):
         user = self.request.user
         if user.is_superuser or user.role == "admin":

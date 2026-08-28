@@ -274,7 +274,7 @@ class VehicleDeleteViewTest(TestCase):
             username="other",
             email="other@test.com",
             password="testpass123",
-            role="admin",
+            role="customer",
         )
 
         self.vehicle = Vehicle.objects.create(

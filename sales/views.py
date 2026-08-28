@@ -150,13 +150,13 @@ def make_offer(request, vehicle_id):
         messages.error(request, "No puedes hacer una oferta en tu propio vehículo.")
         return redirect("vehicles:detail", pk=vehicle_id)
 
-    # Verificar si ya hay una oferta pendiente (cualquier usuario)
+    # Verificar si ya hay una oferta pendiente
     pending_offer = Sale.objects.filter(vehicle=vehicle, status="offer_pending").first()
     if pending_offer:
         messages.error(request, "Ya hay una oferta pendiente para este vehículo.")
         return redirect("vehicles:detail", pk=vehicle_id)
 
-    # Obtener la última oferta del usuario para este vehículo (cualquier estado)
+    # Obtener la última oferta del usuario
     last_offer = (
         Sale.objects.filter(vehicle=vehicle, buyer=request.user)
         .order_by("-created_at")
@@ -165,6 +165,8 @@ def make_offer(request, vehicle_id):
 
     if request.method == "POST":
         offered_price = request.POST.get("offered_price")
+        offer_comment = request.POST.get("offer_comment", "")  # <-- Recoger comentario
+
         if not offered_price:
             messages.error(request, "Debes ingresar un precio.")
             return redirect("vehicles:detail", pk=vehicle_id)
@@ -179,11 +181,10 @@ def make_offer(request, vehicle_id):
                 )
                 return redirect("vehicles:detail", pk=vehicle_id)
 
-            # Validar que no sea mayor que la última oferta del usuario (si existe)
             if last_offer and offered_price > last_offer.offered_price:
                 messages.error(
                     request,
-                    f"Tu nueva oferta no puede ser mayor que tu última oferta de ${last_offer.offered_price}. Debes ofertar un precio menor.",
+                    f"Tu nueva oferta no puede ser mayor que tu última oferta de ${last_offer.offered_price}.",
                 )
                 return redirect("vehicles:detail", pk=vehicle_id)
 
@@ -191,7 +192,7 @@ def make_offer(request, vehicle_id):
             messages.error(request, "Ingresa un precio válido.")
             return redirect("vehicles:detail", pk=vehicle_id)
 
-        # Crear la oferta
+        # Crear la oferta con el comentario
         sale = Sale.objects.create(
             vehicle=vehicle,
             buyer=request.user,
@@ -203,6 +204,7 @@ def make_offer(request, vehicle_id):
                 request.user.profile.phone if hasattr(request.user, "profile") else ""
             ),
             buyer_email=request.user.email,
+            notes=offer_comment,  # <-- Guardar comentario aquí
         )
 
         # Obtener administrador
@@ -221,7 +223,6 @@ def make_offer(request, vehicle_id):
         return redirect("vehicles:detail", pk=vehicle_id)
 
     return redirect("vehicles:detail", pk=vehicle_id)
-
 
 def is_admin(user):
     return user.is_authenticated and (user.is_superuser or user.role == "admin")
