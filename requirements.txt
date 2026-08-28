@@ -1,15 +1,37 @@
 asgiref==3.12.1
+black==26.5.1
+boto3==1.43.82
+botocore==1.43.82
+certifi==2026.7.22
+charset-normalizer==3.5.1
+click==8.5.0
+coverage==7.6.1
 crispy-bootstrap5==2026.3
-Django==6.1
+Django==5.1.7
 django-crispy-forms==2.7
 django-environ==0.14.0
+django-ratelimit==4.1.0
+django-redis==5.4.0
+django-sslserver==0.22
+django-storages==1.14.6
+dnspython==2.8.0
 environ==1.0
-pillow==12.3.0
-psycopg2-binary==2.9.12
-sqlparse==0.6.0
-whitenoise
-django-storages  # opcional, si usas S3
-boto3            # opcional, si usas S3
-coverage==7.6.1
 gunicorn==21.2.0
-django-redis==5.4.0  # si usas Redis
+idna==3.19
+isort==9.0.1
+jmespath==1.1.0
+mypy_extensions==1.1.0
+packaging==26.3
+pathspec==1.1.1
+pillow==12.3.0
+platformdirs==4.11.5
+psycopg2-binary==2.9.12
+python-dateutil==2.9.0.post0
+pytokens==0.4.1
+redis==8.1.0
+requests==2.34.2
+s3transfer==0.19.2
+six==1.17.0
+sqlparse==0.6.0
+urllib3==2.7.0
+whitenoise==6.12.0
