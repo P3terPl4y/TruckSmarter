@@ -34,72 +34,65 @@
     </div>
 
     <!-- Acciones -->
-    <div class="detail-actions">
-      {% if vehicle.sold %}
-        <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
-          <i class="fas fa-check-circle"></i> Vehículo vendido
-        </div>
-      {% elif pending_offer %}
-        <!-- Hay una oferta pendiente -->
-        {% if pending_offer.buyer == user %}
-          <!-- El usuario que hizo la oferta -->
-          <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
-            <i class="fas fa-clock"></i> Tu oferta de ${{ pending_offer.offered_price }} está en revisión
-          </div>
-        {% else %}
-          <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
-            <i class="fas fa-clock"></i> Oferta en revisión
-          </div>
-        {% endif %}
-      {% elif user.is_authenticated and user != vehicle.created_by %}
-        <!-- Formulario para hacer una oferta mejorado -->
-        <form method="post" action="{% url 'sales:make_offer' vehicle.pk %}" style="width:100%;">
-          {% csrf_token %}
-          <div class="offer-form">
-            <!-- Campo de precio -->
-            <div class="form-group" style="margin-bottom:1rem;">
-              <label for="offered_price" class="form-label" style="color:var(--text-secondary); font-weight:400; font-size:0.9rem; display:block; margin-bottom:0.3rem;">
-                <i class="fas fa-tag" style="color:var(--color-accent); margin-right:0.3rem;"></i> Tu oferta
-              </label>
-              <div class="input-group" style="display:flex; align-items:center; background:var(--bg-body); border:1px solid var(--border-color); border-radius:var(--radius-sm); transition:border-color var(--transition), box-shadow var(--transition);">
-                <span class="input-group-text" style="background:transparent; border:none; color:var(--text-muted); padding:0.6rem 0.8rem; font-size:1.1rem;">$</span>
-                <input type="number" name="offered_price" id="offered_price" 
-                       class="form-control" step="0.01" min="1" max="{{ vehicle.price|add:'-0.01' }}"
-                       placeholder="Ingresa tu oferta" required
-                       style="background:transparent; border:none; padding:0.6rem 0.8rem 0.6rem 0; color:var(--text-primary); font-size:1.1rem; width:100%; outline:none;">
-              </div>
-              <small class="text-muted" style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:0.3rem;">
-               
-              </small>
-            </div>
-
-            <!-- Campo de comentario -->
-            <div class="form-group" style="margin-bottom:1.2rem;">
-              <label for="offer_comment" class="form-label" style="color:var(--text-secondary); font-weight:400; font-size:0.9rem; display:block; margin-bottom:0.3rem;">
-                <i class="fas fa-comment" style="color:var(--color-accent); margin-right:0.3rem;"></i> Comentario
-              </label>
-              <textarea required name="offer_comment" id="offer_comment" 
-                        class="form-control" rows="3" maxlength="650"
-                        placeholder="Agrega un comentario a tu oferta (máx. 650 caracteres)"
-                        style="background:var(--bg-body); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:0.6rem 0.8rem; color:var(--text-primary); font-family:var(--font-sans); font-size:0.95rem; width:100%; resize:vertical; transition:border-color var(--transition), box-shadow var(--transition);"></textarea>
-              <div style="display:flex; justify-content:flex-end; margin-top:0.2rem;">
-                <span id="charCount" style="color:var(--text-muted); font-size:0.7rem;">0 / 650</span>
-              </div>
-            </div>
-
-            <button type="submit" class="btn-hero" style="width:100%;">
-              <i class="fas fa-gavel"></i> Hacer oferta
-            </button>
-          </div>
-        </form>
-      {% elif user == vehicle.created_by %}
-        <p style="color: var(--text-muted); width:100%;">
-          Este vehículo es tuyo. Puedes <a href="{% url 'vehicles:update' vehicle.pk %}" style="color:var(--color-accent);">editarlo</a> o <a href="{% url 'vehicles:delete' vehicle.pk %}" style="color:var(--color-accent);">eliminarlo</a>.
-        </p>
-      {% else %}
-        <p style="color: var(--text-muted); width:100%;">Inicia sesión para hacer una oferta.</p>
-      {% endif %}
+<div class="detail-actions">
+  {% if vehicle.sold %}
+    <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
+      <i class="fas fa-check-circle"></i> Vehículo vendido
     </div>
+  {% elif user_has_pending_offer %}
+    <!-- El usuario actual tiene una oferta pendiente -->
+    <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
+      <i class="fas fa-clock"></i> Tu oferta de ${{ user_pending_offer.offered_price }} está en revisión
+    </div>
+  {% elif user.is_authenticated and user != vehicle.created_by %}
+    <!-- Formulario para hacer una oferta (solo si el usuario no tiene oferta pendiente) -->
+    <form method="post" action="{% url 'sales:make_offer' vehicle.pk %}" style="width:100%;">
+      {% csrf_token %}
+      <div class="offer-form">
+        <!-- Campo de precio -->
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="offered_price" class="form-label" style="color:var(--text-secondary); font-weight:400; font-size:0.9rem; display:block; margin-bottom:0.3rem;">
+            <i class="fas fa-tag" style="color:var(--color-accent); margin-right:0.3rem;"></i> Tu oferta
+          </label>
+          <div class="input-group" style="display:flex; align-items:center; background:var(--bg-body); border:1px solid var(--border-color); border-radius:var(--radius-sm); transition:border-color var(--transition), box-shadow var(--transition);">
+            <span class="input-group-text" style="background:transparent; border:none; color:var(--text-muted); padding:0.6rem 0.8rem; font-size:1.1rem;">$</span>
+            <input type="number" name="offered_price" id="offered_price" 
+                   class="form-control" step="0.01" min="1" max="{{ vehicle.price|add:'-0.01' }}"
+                   placeholder="Ingresa tu oferta" required
+                   style="background:transparent; border:none; padding:0.6rem 0.8rem 0.6rem 0; color:var(--text-primary); font-size:1.1rem; width:100%; outline:none;">
+          </div>
+          <small class="text-muted" style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:0.3rem;">
+            
+          </small>
+        </div>
+
+        <!-- Campo de comentario -->
+        <div class="form-group" style="margin-bottom:1.2rem;">
+          <label for="offer_comment" class="form-label" style="color:var(--text-secondary); font-weight:400; font-size:0.9rem; display:block; margin-bottom:0.3rem;">
+            <i class="fas fa-comment" style="color:var(--color-accent); margin-right:0.3rem;"></i> Comentario
+          </label>
+          <textarea required name="offer_comment" id="offer_comment" 
+                    class="form-control" rows="3" maxlength="650"
+                    placeholder="Agrega un comentario a tu oferta (máx. 650 caracteres)"
+                    style="background:var(--bg-body); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:0.6rem 0.8rem; color:var(--text-primary); font-family:var(--font-sans); font-size:0.95rem; width:100%; resize:vertical; transition:border-color var(--transition), box-shadow var(--transition);"></textarea>
+          <div style="display:flex; justify-content:flex-end; margin-top:0.2rem;">
+            <span id="charCount" style="color:var(--text-muted); font-size:0.7rem;">0 / 650</span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-hero" style="width:100%;">
+          <i class="fas fa-gavel"></i> Hacer oferta
+        </button>
+      </div>
+    </form>
+  {% elif user == vehicle.created_by %}
+    <p style="color: var(--text-muted); width:100%;">
+      Este vehículo es tuyo. Puedes <a href="{% url 'vehicles:update' vehicle.pk %}" style="color:var(--color-accent);">editarlo</a> o <a href="{% url 'vehicles:delete' vehicle.pk %}" style="color:var(--color-accent);">eliminarlo</a>.
+    </p>
+  {% else %}
+    <p style="color: var(--text-muted); width:100%;">Inicia sesión para hacer una oferta.</p>
+  {% endif %}
+</div>
 
     <!-- Tarjeta del vendedor (siempre visible) -->
     <div class="seller-card">

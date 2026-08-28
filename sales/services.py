@@ -9,51 +9,67 @@ from django.utils.html import strip_tags
 logger = logging.getLogger(__name__)
 
 
-def send_offer_notifications(vehicle, buyer, admin_user, sale):
-    # Notificación al comprador
+def send_offer_notifications(vehicle, buyer, seller, sale):
+    """
+    Envía email al comprador (confirmación) y al vendedor (notificación).
+    """
+    # Datos del vehículo
+    vehicle_details = {
+        'brand': vehicle.brand.name,
+        'model': vehicle.model,
+        'year': vehicle.year,
+        'price': vehicle.price,
+    }
+
+    # Datos del comprador
+    buyer_details = {
+        'full_name': buyer.get_full_name() or buyer.username,
+        'email': buyer.email,
+    }
+
+    # Datos del vendedor
+    seller_details = {
+        'full_name': seller.get_full_name() or seller.username,
+        'email': seller.email,
+        'phone': seller.profile.phone if hasattr(seller, 'profile') else 'No especificado',
+        'address': seller.profile.address if hasattr(seller, 'profile') else 'No especificada',
+    }
+
+    # Contexto para el email del comprador
+    buyer_context = {
+        'vehicle': vehicle_details,
+        'buyer': buyer_details,
+        'seller': seller_details,
+        'offered_price': sale.offered_price,
+        'comment': sale.notes,
+        'site_name': 'TruckSmarter',
+    }
+
+    # Contexto para el email del vendedor
+    seller_context = {
+        'vehicle': vehicle_details,
+        'buyer': buyer_details,
+        'offered_price': sale.offered_price,
+        'comment': sale.notes,
+        'site_name': 'TruckSmarter',
+    }
+
+    # 1. Email al comprador (confirmación)
     send_email(
-        subject=f"Oferta enviada: {vehicle.brand.name} {vehicle.model}",
+        subject=f"Oferta enviada: {vehicle_details['brand']} {vehicle_details['model']}",
         template_name="emails/offer_confirmation.html",
-        context={
-            "vehicle": {
-                "brand": vehicle.brand.name,
-                "model": vehicle.model,
-                "year": vehicle.year,
-            },
-            "buyer": {
-                "full_name": buyer.get_full_name() or buyer.username,
-                "email": buyer.email,
-            },
-            "offered_price": sale.offered_price,
-            "comment": sale.notes,  # <-- Añadir comentario
-            "site_name": "TruckSmarter",
-        },
+        context=buyer_context,
         to=[buyer.email],
     )
 
-    # Notificación al admin
-    if admin_user:
-        send_email(
-            subject=f"Nueva oferta: {vehicle.brand.name} {vehicle.model}",
-            template_name="emails/admin_offer_notification.html",
-            context={
-                "vehicle": {
-                    "brand": vehicle.brand.name,
-                    "model": vehicle.model,
-                    "year": vehicle.year,
-                },
-                "buyer": {
-                    "full_name": buyer.get_full_name() or buyer.username,
-                    "email": buyer.email,
-                },
-                "offered_price": sale.offered_price,
-                "comment": sale.notes,  # <-- Añadir comentario
-                "sale_id": sale.id,
-                "site_url": "https://tudominio.com",
-            },
-            to=[admin_user.email],
-        )
-
+    # 2. Email al vendedor (notificación de nueva oferta)
+    send_email(
+        subject=f"Nueva oferta para {vehicle_details['brand']} {vehicle_details['model']}",
+        template_name="emails/offer_to_seller.html",
+        context=seller_context,
+        to=[seller.email],
+    )
+    
 def send_offer_accepted_notification(sale):
     send_email(
         subject=f"Oferta aceptada: {sale.vehicle.brand.name} {sale.vehicle.model}",

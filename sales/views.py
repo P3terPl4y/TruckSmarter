@@ -1,12 +1,11 @@
 import logging
 # sales/views.py
-from decimal import Decimal  # <-- Agregar esta línea
+from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction
-from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -14,12 +13,14 @@ from core.mixins import AdminRequiredMixin
 from vehicles.models import Vehicle
 
 from .models import Sale
-from .services import (send_admin_cancellation_notification,
-                       send_cancellation_notification,
-                       send_offer_accepted_notification,
-                       send_offer_notifications,
-                       send_offer_rejected_notification,
-                       send_reservation_notifications)
+from .services import (
+    send_admin_cancellation_notification,
+    send_cancellation_notification,
+    send_offer_accepted_notification,
+    send_offer_notifications,
+    send_offer_rejected_notification,
+    send_reservation_notifications,
+)
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -150,13 +151,15 @@ def make_offer(request, vehicle_id):
         messages.error(request, "No puedes hacer una oferta en tu propio vehículo.")
         return redirect("vehicles:detail", pk=vehicle_id)
 
-    # Verificar si ya hay una oferta pendiente
-    pending_offer = Sale.objects.filter(vehicle=vehicle, status="offer_pending").first()
-    if pending_offer:
-        messages.error(request, "Ya hay una oferta pendiente para este vehículo.")
+    # 🔥 CORRECCIÓN: Solo verificar si el usuario actual ya tiene una oferta pendiente
+    # (No importa si otros usuarios tienen ofertas pendientes)
+    if Sale.objects.filter(
+        vehicle=vehicle, buyer=request.user, status="offer_pending"
+    ).exists():
+        messages.error(request, "Ya tienes una oferta pendiente para este vehículo.")
         return redirect("vehicles:detail", pk=vehicle_id)
 
-    # Obtener la última oferta del usuario
+    # Obtener la última oferta del usuario (para validar que no suba el precio)
     last_offer = (
         Sale.objects.filter(vehicle=vehicle, buyer=request.user)
         .order_by("-created_at")
@@ -165,7 +168,7 @@ def make_offer(request, vehicle_id):
 
     if request.method == "POST":
         offered_price = request.POST.get("offered_price")
-        offer_comment = request.POST.get("offer_comment", "")  # <-- Recoger comentario
+        offer_comment = request.POST.get("offer_comment", "")
 
         if not offered_price:
             messages.error(request, "Debes ingresar un precio.")
@@ -181,6 +184,7 @@ def make_offer(request, vehicle_id):
                 )
                 return redirect("vehicles:detail", pk=vehicle_id)
 
+            # Validar que no sea mayor que la última oferta del usuario (si existe)
             if last_offer and offered_price > last_offer.offered_price:
                 messages.error(
                     request,
@@ -192,11 +196,11 @@ def make_offer(request, vehicle_id):
             messages.error(request, "Ingresa un precio válido.")
             return redirect("vehicles:detail", pk=vehicle_id)
 
-        # Crear la oferta con el comentario
+        # Crear la oferta
         sale = Sale.objects.create(
             vehicle=vehicle,
             buyer=request.user,
-            seller=vehicle.created_by,
+            seller=vehicle.created_by,  # El vendedor es el creador del vehículo
             amount=vehicle.price,
             offered_price=offered_price,
             status="offer_pending",
@@ -204,7 +208,7 @@ def make_offer(request, vehicle_id):
                 request.user.profile.phone if hasattr(request.user, "profile") else ""
             ),
             buyer_email=request.user.email,
-            notes=offer_comment,  # <-- Guardar comentario aquí
+            notes=offer_comment,
         )
 
         # Obtener administrador
@@ -212,7 +216,12 @@ def make_offer(request, vehicle_id):
 
         # Enviar notificaciones
         try:
-            send_offer_notifications(vehicle, request.user, admin_user, sale)
+            send_offer_notifications(
+                vehicle=vehicle,
+                buyer=request.user,
+                seller=vehicle.created_by,  # <-- Vendedor real
+                sale=sale,
+            )
         except Exception as e:
             logger.error(f"Error al enviar email de oferta: {e}")
 
@@ -223,6 +232,7 @@ def make_offer(request, vehicle_id):
         return redirect("vehicles:detail", pk=vehicle_id)
 
     return redirect("vehicles:detail", pk=vehicle_id)
+
 
 def is_admin(user):
     return user.is_authenticated and (user.is_superuser or user.role == "admin")

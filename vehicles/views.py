@@ -64,14 +64,23 @@ class VehicleDetailView(TrackVehicleViewMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Verificar si el usuario puede editar este vehículo
         vehicle = self.get_object()
         user = self.request.user
 
-        pending_offer = Sale.objects.filter(
+        # Oferta pendiente del usuario actual (si existe)
+        user_pending_offer = None
+        if user.is_authenticated:
+            user_pending_offer = Sale.objects.filter(
+                vehicle=vehicle, buyer=user, status="offer_pending"
+            ).first()
+
+        context["user_pending_offer"] = user_pending_offer
+        context["user_has_pending_offer"] = user_pending_offer is not None
+
+        # Oferta pendiente general (para otros usos, como mostrar el estado global)
+        context["pending_offer"] = Sale.objects.filter(
             vehicle=vehicle, status="offer_pending"
         ).first()
-        context["pending_offer"] = pending_offer
 
         context["can_edit"] = user.is_authenticated and (
             user.role == "admin" or user.is_superuser or vehicle.created_by == user
