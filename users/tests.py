@@ -1,7 +1,9 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
-from unittest.mock import patch
+
 from .models import Profile
 
 User = get_user_model()
@@ -49,12 +51,13 @@ class RegistrationTest(TestCase):
 
     def setUp(self):
         self.client = Client()
-    @patch('dns.resolver.resolve')
+
+    @patch("dns.resolver.resolve")
     def test_register_view(self, mock_resolve):
         """Verifica que el registro de usuario funcione."""
         # Configurar el mock para que no lance excepción
         mock_resolve.return_value = None
-        
+
         response = self.client.post(
             reverse("users:register"),
             {

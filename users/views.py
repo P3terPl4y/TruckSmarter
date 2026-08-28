@@ -4,18 +4,19 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import LoginView, LogoutView
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.generic import ListView, UpdateView
 from django_ratelimit.decorators import ratelimit
+from django_ratelimit.exceptions import Ratelimited
 
 from .forms import CustomUserCreationForm, ProfileForm, UserAdminForm
 from .models import EmailVerification, Profile, User
 from .services import send_verification_email
-from django_ratelimit.exceptions import Ratelimited
-from django.http import HttpResponse
+
 # y usar HttpResponse("...", status=429)
 
 
@@ -66,19 +67,19 @@ class UserUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     success_url = reverse_lazy("users:admin_list")
 
 
-
-
 class CustomLoginView(LoginView):
-    template_name = 'users/login.html'
+    template_name = "users/login.html"
     redirect_authenticated_user = True
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(key="ip", rate="5/m", method="POST", block=True))
     def dispatch(self, request, *args, **kwargs):
         try:
             return super().dispatch(request, *args, **kwargs)
         except Ratelimited:
-            return HttpResponse("Demasiados intentos. Intenta de nuevo en un minuto.", status=429)
-            
+            return HttpResponse(
+                "Demasiados intentos. Intenta de nuevo en un minuto.", status=429
+            )
+
     def get_success_url(self):
         user = self.request.user
         if user.is_superuser or user.role == "admin":

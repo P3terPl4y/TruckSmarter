@@ -13,14 +13,12 @@ from core.mixins import AdminRequiredMixin
 from vehicles.models import Vehicle
 
 from .models import Sale
-from .services import (
-    send_admin_cancellation_notification,
-    send_cancellation_notification,
-    send_offer_accepted_notification,
-    send_offer_notifications,
-    send_offer_rejected_notification,
-    send_reservation_notifications,
-)
+from .services import (send_admin_cancellation_notification,
+                       send_cancellation_notification,
+                       send_offer_accepted_notification,
+                       send_offer_notifications,
+                       send_offer_rejected_notification,
+                       send_reservation_notifications)
 
 User = get_user_model()
 logger = logging.getLogger(__name__)

@@ -15,43 +15,47 @@ def send_offer_notifications(vehicle, buyer, seller, sale):
     """
     # Datos del vehículo
     vehicle_details = {
-        'brand': vehicle.brand.name,
-        'model': vehicle.model,
-        'year': vehicle.year,
-        'price': vehicle.price,
+        "brand": vehicle.brand.name,
+        "model": vehicle.model,
+        "year": vehicle.year,
+        "price": vehicle.price,
     }
 
     # Datos del comprador
     buyer_details = {
-        'full_name': buyer.get_full_name() or buyer.username,
-        'email': buyer.email,
+        "full_name": buyer.get_full_name() or buyer.username,
+        "email": buyer.email,
     }
 
     # Datos del vendedor
     seller_details = {
-        'full_name': seller.get_full_name() or seller.username,
-        'email': seller.email,
-        'phone': seller.profile.phone if hasattr(seller, 'profile') else 'No especificado',
-        'address': seller.profile.address if hasattr(seller, 'profile') else 'No especificada',
+        "full_name": seller.get_full_name() or seller.username,
+        "email": seller.email,
+        "phone": (
+            seller.profile.phone if hasattr(seller, "profile") else "No especificado"
+        ),
+        "address": (
+            seller.profile.address if hasattr(seller, "profile") else "No especificada"
+        ),
     }
 
     # Contexto para el email del comprador
     buyer_context = {
-        'vehicle': vehicle_details,
-        'buyer': buyer_details,
-        'seller': seller_details,
-        'offered_price': sale.offered_price,
-        'comment': sale.notes,
-        'site_name': 'TruckSmarter',
+        "vehicle": vehicle_details,
+        "buyer": buyer_details,
+        "seller": seller_details,
+        "offered_price": sale.offered_price,
+        "comment": sale.notes,
+        "site_name": "TruckSmarter",
     }
 
     # Contexto para el email del vendedor
     seller_context = {
-        'vehicle': vehicle_details,
-        'buyer': buyer_details,
-        'offered_price': sale.offered_price,
-        'comment': sale.notes,
-        'site_name': 'TruckSmarter',
+        "vehicle": vehicle_details,
+        "buyer": buyer_details,
+        "offered_price": sale.offered_price,
+        "comment": sale.notes,
+        "site_name": "TruckSmarter",
     }
 
     # 1. Email al comprador (confirmación)
@@ -69,7 +73,8 @@ def send_offer_notifications(vehicle, buyer, seller, sale):
         context=seller_context,
         to=[seller.email],
     )
-    
+
+
 def send_offer_accepted_notification(sale):
     send_email(
         subject=f"Oferta aceptada: {sale.vehicle.brand.name} {sale.vehicle.model}",

@@ -4,6 +4,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
+from django.views import View
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
 
@@ -15,7 +16,7 @@ from sales.models import Sale  # <-- Agregar esta línea
 
 from .forms import VehicleForm
 from .models import Vehicle
-from django.views import View
+
 
 class VehicleListView(ListView):
     model = Vehicle
@@ -126,7 +127,7 @@ class VehicleUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateView):
 class VehicleDeleteView(LoginRequiredMixin, OwnerOrAdminRequiredMixin, View):
     def get(self, request, pk, *args, **kwargs):
         vehicle = get_object_or_404(Vehicle, pk=pk)
-        return render(request, 'vehicles/confirm_delete.html', {'object': vehicle})
+        return render(request, "vehicles/confirm_delete.html", {"object": vehicle})
 
     def post(self, request, pk, *args, **kwargs):
         vehicle = get_object_or_404(Vehicle, pk=pk)
@@ -134,4 +135,4 @@ class VehicleDeleteView(LoginRequiredMixin, OwnerOrAdminRequiredMixin, View):
         vehicle.sold = True
         vehicle.save()
         messages.success(request, "Vehículo eliminado correctamente.")
-        return redirect('vehicles:list')
+        return redirect("vehicles:list")
