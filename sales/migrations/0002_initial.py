@@ -10,25 +10,37 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('sales', '0001_initial'),
-        ('vehicles', '0001_initial'),
+        ("sales", "0001_initial"),
+        ("vehicles", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='sale',
-            name='buyer',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='purchases', to=settings.AUTH_USER_MODEL),
+            model_name="sale",
+            name="buyer",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="purchases",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='sale',
-            name='seller',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='sales', to=settings.AUTH_USER_MODEL),
+            model_name="sale",
+            name="seller",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="sales",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='sale',
-            name='vehicle',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='sales', to='vehicles.vehicle'),
+            model_name="sale",
+            name="vehicle",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="sales",
+                to="vehicles.vehicle",
+            ),
         ),
     ]

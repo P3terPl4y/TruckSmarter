@@ -7,25 +7,50 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Sale',
+            name="Sale",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=12)),
-                ('offered_price', models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True)),
-                ('status', models.CharField(choices=[('offer_pending', 'Oferta pendiente'), ('offer_accepted', 'Oferta aceptada'), ('offer_rejected', 'Oferta rechazada'), ('completed', 'Completada'), ('cancelled', 'Cancelada')], default='offer_pending', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('buyer_phone', models.CharField(blank=True, max_length=20)),
-                ('buyer_email', models.EmailField(blank=True, max_length=254)),
-                ('notes', models.TextField(blank=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("amount", models.DecimalField(decimal_places=2, max_digits=12)),
+                (
+                    "offered_price",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=12, null=True
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("offer_pending", "Oferta pendiente"),
+                            ("offer_accepted", "Oferta aceptada"),
+                            ("offer_rejected", "Oferta rechazada"),
+                            ("completed", "Completada"),
+                            ("cancelled", "Cancelada"),
+                        ],
+                        default="offer_pending",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("buyer_phone", models.CharField(blank=True, max_length=20)),
+                ("buyer_email", models.EmailField(blank=True, max_length=254)),
+                ("notes", models.TextField(blank=True)),
             ],
             options={
-                'ordering': ['-created_at'],
+                "ordering": ["-created_at"],
             },
         ),
     ]

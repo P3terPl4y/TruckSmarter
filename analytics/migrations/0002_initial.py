@@ -10,28 +10,41 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('analytics', '0001_initial'),
-        ('vehicles', '0001_initial'),
+        ("analytics", "0001_initial"),
+        ("vehicles", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='vehicleview',
-            name='user',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL),
+            model_name="vehicleview",
+            name="user",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='vehicleview',
-            name='vehicle',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='views', to='vehicles.vehicle'),
+            model_name="vehicleview",
+            name="vehicle",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="views",
+                to="vehicles.vehicle",
+            ),
         ),
         migrations.AddIndex(
-            model_name='vehicleview',
-            index=models.Index(fields=['vehicle', 'viewed_at'], name='analytics_v_vehicle_043eca_idx'),
+            model_name="vehicleview",
+            index=models.Index(
+                fields=["vehicle", "viewed_at"], name="analytics_v_vehicle_043eca_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='vehicleview',
-            index=models.Index(fields=['session_key', 'vehicle'], name='analytics_v_session_9afb97_idx'),
+            model_name="vehicleview",
+            index=models.Index(
+                fields=["session_key", "vehicle"], name="analytics_v_session_9afb97_idx"
+            ),
         ),
     ]

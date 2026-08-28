@@ -2,17 +2,20 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
 
-from core.mixins import OwnerOrAdminRequiredMixin, SellerRequiredMixin,AdminRequiredMixin
+from analytics.mixins import TrackVehicleViewMixin
+from core.mixins import (AdminRequiredMixin, OwnerOrAdminRequiredMixin,
+                         SellerRequiredMixin)
 # vehicles/views.py
 from sales.models import Sale  # <-- Agregar esta línea
+
 from .forms import VehicleForm
 from .models import Vehicle
-from django.shortcuts import redirect
-from analytics.mixins import TrackVehicleViewMixin
+
 
 class VehicleListView(ListView):
     model = Vehicle
@@ -55,7 +58,7 @@ class VehicleListView(ListView):
         return qs
 
 
-class VehicleDetailView(TrackVehicleViewMixin,DetailView):
+class VehicleDetailView(TrackVehicleViewMixin, DetailView):
     model = Vehicle
     template_name = "vehicles/detail.html"
 
@@ -64,13 +67,12 @@ class VehicleDetailView(TrackVehicleViewMixin,DetailView):
         # Verificar si el usuario puede editar este vehículo
         vehicle = self.get_object()
         user = self.request.user
-        
+
         pending_offer = Sale.objects.filter(
-            vehicle=vehicle,
-            status='offer_pending'
+            vehicle=vehicle, status="offer_pending"
         ).first()
-        context['pending_offer'] = pending_offer
-        
+        context["pending_offer"] = pending_offer
+
         context["can_edit"] = user.is_authenticated and (
             user.role == "admin" or user.is_superuser or vehicle.created_by == user
         )
@@ -114,8 +116,8 @@ class VehicleUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateView):
 
 class VehicleDeleteView(LoginRequiredMixin, OwnerOrAdminRequiredMixin, DeleteView):
     model = Vehicle
-    template_name = 'vehicles/confirm_delete.html'
-    success_url = reverse_lazy('vehicles:list')
+    template_name = "vehicles/confirm_delete.html"
+    success_url = reverse_lazy("vehicles:list")
 
     def delete(self, request, *args, **kwargs):
         self.object = self.get_object()

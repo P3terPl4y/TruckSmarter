@@ -1,31 +1,38 @@
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.db import transaction
-from django.db.models import F
-from django.urls import reverse
-from vehicles.models import Vehicle
-from .models import Sale
-from django.shortcuts import get_object_or_404, redirect
-from .services import send_reservation_notifications, send_cancellation_notification, send_admin_cancellation_notification
-from .services import send_offer_notifications, send_offer_accepted_notification, send_offer_rejected_notification
-from django.contrib.auth import get_user_model
 import logging
-from core.mixins import AdminRequiredMixin
-from django.contrib.auth.decorators import user_passes_test
 # sales/views.py
 from decimal import Decimal  # <-- Agregar esta línea
 
+from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db import transaction
+from django.db.models import F
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+
+from core.mixins import AdminRequiredMixin
+from vehicles.models import Vehicle
+
+from .models import Sale
+from .services import (send_admin_cancellation_notification,
+                       send_cancellation_notification,
+                       send_offer_accepted_notification,
+                       send_offer_notifications,
+                       send_offer_rejected_notification,
+                       send_reservation_notifications)
+
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
 
 def get_admin_user():
     """Obtiene el primer superusuario o usuario con role='admin'."""
     admin = User.objects.filter(is_superuser=True).first()
     if not admin:
-        admin = User.objects.filter(role='admin').first()
+        admin = User.objects.filter(role="admin").first()
     return admin
-    
+
+
 @login_required
 @transaction.atomic
 def reserve_vehicle(request, vehicle_id):
@@ -48,7 +55,9 @@ def reserve_vehicle(request, vehicle_id):
         seller=vehicle.created_by,
         amount=vehicle.price,
         status="reserved",
-        buyer_phone=request.user.profile.phone if hasattr(request.user, "profile") else "",
+        buyer_phone=(
+            request.user.profile.phone if hasattr(request.user, "profile") else ""
+        ),
         buyer_email=request.user.email,
     )
 
@@ -63,10 +72,7 @@ def reserve_vehicle(request, vehicle_id):
     # Enviar notificaciones
     try:
         send_reservation_notifications(
-            vehicle=vehicle,
-            buyer=request.user,
-            admin_user=admin_user,
-            sale=sale
+            vehicle=vehicle, buyer=request.user, admin_user=admin_user, sale=sale
         )
     except Exception as e:
         logger.error(f"Error al enviar email de reserva: {e}")
@@ -74,9 +80,10 @@ def reserve_vehicle(request, vehicle_id):
 
     messages.success(
         request,
-        f"¡Vehículo reservado! {vehicle.brand.name} {vehicle.model} ha sido reservado."
+        f"¡Vehículo reservado! {vehicle.brand.name} {vehicle.model} ha sido reservado.",
     )
     return redirect("vehicles:detail", pk=vehicle_id)
+
 
 @login_required
 @transaction.atomic
@@ -89,7 +96,9 @@ def cancel_reservation(request, vehicle_id):
     )
 
     # Obtener la venta asociada
-    sale = Sale.objects.filter(vehicle=vehicle, buyer=request.user, status="reserved").first()
+    sale = Sale.objects.filter(
+        vehicle=vehicle, buyer=request.user, status="reserved"
+    ).first()
     if sale:
         sale.status = "cancelled"
         sale.save()
@@ -113,15 +122,19 @@ def cancel_reservation(request, vehicle_id):
         send_cancellation_notification(vehicle, request.user)
     except Exception as e:
         logger.error(f"Error al enviar email de cancelación al comprador: {e}")
-        
-    messages.info(request, f"Has cancelado la reserva de {vehicle.brand.name} {vehicle.model}.")
+
+    messages.info(
+        request, f"Has cancelado la reserva de {vehicle.brand.name} {vehicle.model}."
+    )
     return redirect("vehicles:detail", pk=vehicle_id)
+
 
 @login_required
 def purchase_history(request):
     """Ver historial de compras del usuario."""
     sales = Sale.objects.filter(buyer=request.user).select_related("vehicle", "seller")
     return render(request, "sales/history.html", {"sales": sales})
+
 
 @login_required
 @transaction.atomic
@@ -138,16 +151,20 @@ def make_offer(request, vehicle_id):
         return redirect("vehicles:detail", pk=vehicle_id)
 
     # Verificar si ya hay una oferta pendiente (cualquier usuario)
-    pending_offer = Sale.objects.filter(vehicle=vehicle, status='offer_pending').first()
+    pending_offer = Sale.objects.filter(vehicle=vehicle, status="offer_pending").first()
     if pending_offer:
         messages.error(request, "Ya hay una oferta pendiente para este vehículo.")
         return redirect("vehicles:detail", pk=vehicle_id)
 
     # Obtener la última oferta del usuario para este vehículo (cualquier estado)
-    last_offer = Sale.objects.filter(vehicle=vehicle, buyer=request.user).order_by('-created_at').first()
+    last_offer = (
+        Sale.objects.filter(vehicle=vehicle, buyer=request.user)
+        .order_by("-created_at")
+        .first()
+    )
 
-    if request.method == 'POST':
-        offered_price = request.POST.get('offered_price')
+    if request.method == "POST":
+        offered_price = request.POST.get("offered_price")
         if not offered_price:
             messages.error(request, "Debes ingresar un precio.")
             return redirect("vehicles:detail", pk=vehicle_id)
@@ -157,12 +174,17 @@ def make_offer(request, vehicle_id):
             if offered_price <= 0:
                 raise ValueError
             if offered_price >= vehicle.price:
-                messages.error(request, "El precio ofertado debe ser menor al precio publicado.")
+                messages.error(
+                    request, "El precio ofertado debe ser menor al precio publicado."
+                )
                 return redirect("vehicles:detail", pk=vehicle_id)
 
             # Validar que no sea mayor que la última oferta del usuario (si existe)
             if last_offer and offered_price > last_offer.offered_price:
-                messages.error(request, f"Tu nueva oferta no puede ser mayor que tu última oferta de ${last_offer.offered_price}. Debes ofertar un precio menor.")
+                messages.error(
+                    request,
+                    f"Tu nueva oferta no puede ser mayor que tu última oferta de ${last_offer.offered_price}. Debes ofertar un precio menor.",
+                )
                 return redirect("vehicles:detail", pk=vehicle_id)
 
         except (ValueError, TypeError):
@@ -176,8 +198,10 @@ def make_offer(request, vehicle_id):
             seller=vehicle.created_by,
             amount=vehicle.price,
             offered_price=offered_price,
-            status='offer_pending',
-            buyer_phone=request.user.profile.phone if hasattr(request.user, 'profile') else "",
+            status="offer_pending",
+            buyer_phone=(
+                request.user.profile.phone if hasattr(request.user, "profile") else ""
+            ),
             buyer_email=request.user.email,
         )
 
@@ -192,7 +216,7 @@ def make_offer(request, vehicle_id):
 
         messages.success(
             request,
-            f"¡Oferta enviada! {vehicle.brand.name} {vehicle.model} - Tu oferta de ${offered_price} está en revisión."
+            f"¡Oferta enviada! {vehicle.brand.name} {vehicle.model} - Tu oferta de ${offered_price} está en revisión.",
         )
         return redirect("vehicles:detail", pk=vehicle_id)
 
@@ -200,14 +224,17 @@ def make_offer(request, vehicle_id):
 
 
 def is_admin(user):
-    return user.is_authenticated and (user.is_superuser or user.role == 'admin')
+    return user.is_authenticated and (user.is_superuser or user.role == "admin")
+
 
 @login_required
 @user_passes_test(is_admin)
 @transaction.atomic
 def accept_offer(request, sale_id):
-    sale = get_object_or_404(Sale.objects.select_for_update(), id=sale_id, status='offer_pending')
-    sale.status = 'offer_accepted'
+    sale = get_object_or_404(
+        Sale.objects.select_for_update(), id=sale_id, status="offer_pending"
+    )
+    sale.status = "offer_accepted"
     sale.save()
 
     vehicle = sale.vehicle
@@ -222,15 +249,20 @@ def accept_offer(request, sale_id):
     except Exception as e:
         logger.error(f"Error al enviar email de aceptación: {e}")
 
-    messages.success(request, f"Oferta aceptada para {vehicle.brand.name} {vehicle.model}.")
-    return redirect('dashboard:offer_list')
+    messages.success(
+        request, f"Oferta aceptada para {vehicle.brand.name} {vehicle.model}."
+    )
+    return redirect("dashboard:offer_list")
+
 
 @login_required
 @user_passes_test(is_admin)
 @transaction.atomic
 def reject_offer(request, sale_id):
-    sale = get_object_or_404(Sale.objects.select_for_update(), id=sale_id, status='offer_pending')
-    sale.status = 'offer_rejected'
+    sale = get_object_or_404(
+        Sale.objects.select_for_update(), id=sale_id, status="offer_pending"
+    )
+    sale.status = "offer_rejected"
     sale.save()
 
     vehicle = sale.vehicle
@@ -243,5 +275,7 @@ def reject_offer(request, sale_id):
     except Exception as e:
         logger.error(f"Error al enviar email de rechazo: {e}")
 
-    messages.info(request, f"Oferta rechazada para {vehicle.brand.name} {vehicle.model}.")
-    return redirect('dashboard:offer_list')
+    messages.info(
+        request, f"Oferta rechazada para {vehicle.brand.name} {vehicle.model}."
+    )
+    return redirect("dashboard:offer_list")

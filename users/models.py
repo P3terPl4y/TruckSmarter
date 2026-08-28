@@ -1,19 +1,21 @@
+import uuid
+
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.conf import settings
-import uuid
 from django.utils import timezone
 
 token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
 expires_at = models.DateTimeField()
 
+
 class User(AbstractUser):
     email = models.EmailField(unique=True)
     ROLE_CHOICES = (
         ("admin", "Administrador"),
-        ('seller', 'Comerciante'), 
+        ("seller", "Comerciante"),
         ("customer", "Cliente"),
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="customer")
@@ -53,13 +55,21 @@ def create_user_profile(sender, instance, created, **kwargs):
     if created:
         Profile.objects.create(user=instance)
 
+
 def get_expiration_time():
     return timezone.now() + timedelta(hours=24)
 
+
 class EmailVerification(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='email_verifications')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="email_verifications",
+    )
     email = models.EmailField()
-    token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)  # <-- Agregar
+    token = models.UUIDField(
+        default=uuid.uuid4, editable=False, unique=True
+    )  # <-- Agregar
     expires_at = models.DateTimeField(default=get_expiration_time)
     created_at = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)

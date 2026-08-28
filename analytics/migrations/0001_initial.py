@@ -7,19 +7,31 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='VehicleView',
+            name="VehicleView",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('session_key', models.CharField(blank=True, db_index=True, max_length=40, null=True)),
-                ('viewed_at', models.DateTimeField(auto_now_add=True, db_index=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "session_key",
+                    models.CharField(
+                        blank=True, db_index=True, max_length=40, null=True
+                    ),
+                ),
+                ("viewed_at", models.DateTimeField(auto_now_add=True, db_index=True)),
             ],
             options={
-                'ordering': ['-viewed_at'],
+                "ordering": ["-viewed_at"],
             },
         ),
     ]

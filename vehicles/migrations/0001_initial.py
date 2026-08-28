@@ -15,44 +15,130 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Brand',
+            name="Brand",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100, unique=True)),
-                ('logo', models.ImageField(blank=True, null=True, upload_to='brands/')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100, unique=True)),
+                ("logo", models.ImageField(blank=True, null=True, upload_to="brands/")),
             ],
         ),
         migrations.CreateModel(
-            name='Vehicle',
+            name="Vehicle",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('model', models.CharField(max_length=100)),
-                ('year', models.PositiveIntegerField()),
-                ('price', models.DecimalField(decimal_places=2, max_digits=12)),
-                ('mileage', models.PositiveIntegerField(help_text='Kilometraje (km)')),
-                ('transmission', models.CharField(choices=[('manual', 'Manual'), ('automatic', 'Automática'), ('cvt', 'CVT')], max_length=20)),
-                ('fuel_type', models.CharField(choices=[('gasoline', 'Gasolina'), ('diesel', 'Diésel'), ('electric', 'Eléctrico'), ('hybrid', 'Híbrido')], max_length=20)),
-                ('status', models.CharField(choices=[('new', 'Nuevo'), ('used', 'Usado')], default='used', max_length=10)),
-                ('description', models.TextField(blank=True)),
-                ('main_image', models.ImageField(blank=True, null=True, upload_to='vehicles/')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('is_active', models.BooleanField(default=True)),
-                ('sold', models.BooleanField(default=False)),
-                ('reserved', models.BooleanField(default=False)),
-                ('view_count', models.PositiveIntegerField(default=0)),
-                ('brand', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='vehicles', to='vehicles.brand')),
-                ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='vehicles_created', to=settings.AUTH_USER_MODEL)),
-                ('reserved_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='reserved_vehicles', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("model", models.CharField(max_length=100)),
+                ("year", models.PositiveIntegerField()),
+                ("price", models.DecimalField(decimal_places=2, max_digits=12)),
+                ("mileage", models.PositiveIntegerField(help_text="Kilometraje (km)")),
+                (
+                    "transmission",
+                    models.CharField(
+                        choices=[
+                            ("manual", "Manual"),
+                            ("automatic", "Automática"),
+                            ("cvt", "CVT"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "fuel_type",
+                    models.CharField(
+                        choices=[
+                            ("gasoline", "Gasolina"),
+                            ("diesel", "Diésel"),
+                            ("electric", "Eléctrico"),
+                            ("hybrid", "Híbrido"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[("new", "Nuevo"), ("used", "Usado")],
+                        default="used",
+                        max_length=10,
+                    ),
+                ),
+                ("description", models.TextField(blank=True)),
+                (
+                    "main_image",
+                    models.ImageField(blank=True, null=True, upload_to="vehicles/"),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("is_active", models.BooleanField(default=True)),
+                ("sold", models.BooleanField(default=False)),
+                ("reserved", models.BooleanField(default=False)),
+                ("view_count", models.PositiveIntegerField(default=0)),
+                (
+                    "brand",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="vehicles",
+                        to="vehicles.brand",
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="vehicles_created",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "reserved_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="reserved_vehicles",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='VehicleImage',
+            name="VehicleImage",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('image', models.ImageField(upload_to='vehicles/')),
-                ('is_primary', models.BooleanField(default=False)),
-                ('vehicle', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='images', to='vehicles.vehicle')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("image", models.ImageField(upload_to="vehicles/")),
+                ("is_primary", models.BooleanField(default=False)),
+                (
+                    "vehicle",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="images",
+                        to="vehicles.vehicle",
+                    ),
+                ),
             ],
         ),
     ]

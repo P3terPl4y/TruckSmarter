@@ -1,50 +1,55 @@
-from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest
-from django.contrib.auth.mixins import UserPassesTestMixin
+from django.test import TestCase
 from django.views.generic import View
-from .mixins import SellerRequiredMixin, AdminRequiredMixin, OwnerOrAdminRequiredMixin
+
+from .mixins import (AdminRequiredMixin, OwnerOrAdminRequiredMixin,
+                     SellerRequiredMixin)
 
 User = get_user_model()
 
+
 class MockView(View):
     """Vista mock para probar mixins."""
+
     def get_object(self):
         return None
+
 
 class SellerRequiredMixinTest(TestCase):
     """Pruebas para SellerRequiredMixin."""
 
     def setUp(self):
         self.seller = User.objects.create_user(
-            username='seller',
-            email='seller@test.com',
-            password='testpass123',
-            role='seller'
+            username="seller",
+            email="seller@test.com",
+            password="testpass123",
+            role="seller",
         )
         self.customer = User.objects.create_user(
-            username='customer',
-            email='customer@test.com',
-            password='testpass123',
-            role='customer'
+            username="customer",
+            email="customer@test.com",
+            password="testpass123",
+            role="customer",
         )
         self.admin = User.objects.create_user(
-            username='admin',
-            email='admin@test.com',
-            password='testpass123',
-            role='admin'
+            username="admin",
+            email="admin@test.com",
+            password="testpass123",
+            role="admin",
         )
 
     def test_seller_required_allowed(self):
         """Verifica que comerciantes y administradores pasen la prueba."""
         mixin = SellerRequiredMixin()
         request = HttpRequest()
-        
+
         request.user = self.seller
         mixin.request = request
         self.assertTrue(mixin.test_func())
-        
+
         request.user = self.admin
         mixin.request = request
         self.assertTrue(mixin.test_func())
@@ -71,16 +76,16 @@ class AdminRequiredMixinTest(TestCase):
 
     def setUp(self):
         self.admin = User.objects.create_user(
-            username='admin',
-            email='admin@test.com',
-            password='testpass123',
-            role='admin'
+            username="admin",
+            email="admin@test.com",
+            password="testpass123",
+            role="admin",
         )
         self.seller = User.objects.create_user(
-            username='seller',
-            email='seller@test.com',
-            password='testpass123',
-            role='seller'
+            username="seller",
+            email="seller@test.com",
+            password="testpass123",
+            role="seller",
         )
 
     def test_admin_required_allowed(self):
@@ -105,22 +110,22 @@ class OwnerOrAdminRequiredMixinTest(TestCase):
 
     def setUp(self):
         self.admin = User.objects.create_user(
-            username='admin',
-            email='admin@test.com',
-            password='testpass123',
-            role='admin'
+            username="admin",
+            email="admin@test.com",
+            password="testpass123",
+            role="admin",
         )
         self.owner = User.objects.create_user(
-            username='owner',
-            email='owner@test.com',
-            password='testpass123',
-            role='seller'
+            username="owner",
+            email="owner@test.com",
+            password="testpass123",
+            role="seller",
         )
         self.other = User.objects.create_user(
-            username='other',
-            email='other@test.com',
-            password='testpass123',
-            role='seller'
+            username="other",
+            email="other@test.com",
+            password="testpass123",
+            role="seller",
         )
 
     class MockObject:
