@@ -9,7 +9,7 @@ User = get_user_model()
 class DashboardTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.admin = User.objects.create_superuser(username='admin', email='admin@test.com', password='adminpass')
+        self.admin = User.objects.create_superuser(username='admin', email='admin@test.com', password='adminpass',role='admin')
         self.user = User.objects.create_user(username='user', email='user@test.com', password='userpass', role='customer')
         self.brand = Brand.objects.create(name='Toyota')
         self.vehicle = Vehicle.objects.create(

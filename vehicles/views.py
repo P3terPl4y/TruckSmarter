@@ -120,7 +120,7 @@ class VehicleDeleteView(LoginRequiredMixin, OwnerOrAdminRequiredMixin, DeleteVie
     def delete(self, request, *args, **kwargs):
         self.object = self.get_object()
         self.object.is_active = False
-        self.object.sold = True  # Opcional
+        self.object.sold = True
         self.object.save()
         messages.success(request, "Vehículo eliminado correctamente.")
         return redirect(self.success_url)

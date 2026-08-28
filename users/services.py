@@ -19,20 +19,22 @@ def send_verification_email(user, token):
         [user.email],
         html_message=message,
     )
+# users/services.py
 def verify_email_api(email):
     """
     Verifica la validez de un email usando una API externa.
     """
-    api_key = settings.EMAIL_VERIFICATION_API_KEY
+    api_key = getattr(settings, 'EMAIL_VERIFICATION_API_KEY', None)
+    if not api_key:
+        # Si no hay API key, omitimos la verificación (no bloquear)
+        return True
     url = f"https://api.hunter.io/v2/email-verifier?email={email}&api_key={api_key}"
-    
     try:
         response = requests.get(url, timeout=5)
         data = response.json()
-        # Verificar el estado de la respuesta
         if data.get('data', {}).get('status') == 'valid':
             return True
         return False
     except Exception:
-        # Si falla la API, permitimos el registro (no bloquear por error de API)
+        # Si falla la API, permitimos el registro (no bloquear)
         return True
