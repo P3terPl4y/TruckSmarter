@@ -1,0 +1,5580 @@
+========== ./vehicles/tests.py ==========
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import Client, TestCase
+from django.urls import reverse
+
+from users.models import Profile
+
+from .models import Brand, Vehicle, VehicleImage
+
+User = get_user_model()
+
+
+class VehicleModelTest(TestCase):
+    """Pruebas para los modelos de vehículos."""
+
+    def setUp(self):
+        self.brand = Brand.objects.create(name="Toyota")
+        self.user = User.objects.create_user(
+            username="seller",
+            email="seller@test.com",
+            password="testpass123",
+            role="admin",
+        )
+        self.vehicle = Vehicle.objects.create(
+            brand=self.brand,
+            model="Corolla",
+            year=2020,
+            price=20000.00,
+            mileage=15000,
+            transmission="automatic",
+            fuel_type="gasoline",
+            status="used",
+            description="Excelente estado",
+            created_by=self.user,
+            is_active=True,
+            sold=False,
+        )
+
+    def test_vehicle_creation(self):
+        """Verifica que un vehículo se cree correctamente."""
+        self.assertEqual(self.vehicle.brand.name, "Toyota")
+        self.assertEqual(self.vehicle.model, "Corolla")
+        self.assertEqual(str(self.vehicle), "Toyota Corolla (2020)")
+
+    def test_mark_as_sold(self):
+        """Verifica que mark_as_sold funcione correctamente."""
+        from sales.models import Sale
+
+        buyer = User.objects.create_user(
+            username="buyer",
+            email="buyer@test.com",
+            password="testpass123",
+            role="customer",
+        )
+
+        sale = self.vehicle.mark_as_sold(buyer)
+
+        self.vehicle.refresh_from_db()
+        self.assertTrue(self.vehicle.sold)
+        self.assertFalse(self.vehicle.is_active)
+        self.assertIsNotNone(sale)
+        self.assertEqual(sale.buyer, buyer)
+        self.assertEqual(sale.seller, self.user)
+        self.assertEqual(sale.amount, self.vehicle.price)
+
+
+class VehicleListViewTest(TestCase):
+    """Pruebas para VehicleListView."""
+
+    def setUp(self):
+        self.client = Client()
+        self.brand = Brand.objects.create(name="Toyota")
+        self.user = User.objects.create_user(
+            username="seller",
+            email="seller@test.com",
+            password="testpass123",
+            role="admin",
+        )
+        self.vehicle = Vehicle.objects.create(
+            brand=self.brand,
+            model="Corolla",
+            year=2020,
+            price=20000.00,
+            mileage=15000,
+            transmission="automatic",
+            fuel_type="gasoline",
+            status="used",
+            created_by=self.user,
+            is_active=True,
+            sold=False,
+        )
+
+    def test_list_view_status_code(self):
+        """Verifica que la lista de vehículos cargue correctamente."""
+        response = self.client.get(reverse("vehicles:list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Corolla")
+
+    def test_list_view_filters(self):
+        """Verifica que los filtros funcionen correctamente."""
+        # Filtro por precio mínimo
+        response = self.client.get(reverse("vehicles:list"), {"min_price": "15000"})
+        self.assertContains(response, "Corolla")
+
+        response = self.client.get(reverse("vehicles:list"), {"min_price": "25000"})
+        self.assertNotContains(response, "Corolla")
+
+        # Filtro por búsqueda
+        response = self.client.get(reverse("vehicles:list"), {"q": "Toyota"})
+        self.assertContains(response, "Corolla")
+
+        response = self.client.get(reverse("vehicles:list"), {"q": "Honda"})
+        self.assertNotContains(response, "Corolla")
+
+
+class VehicleCreateViewTest(TestCase):
+    """Pruebas para VehicleCreateView."""
+
+    def setUp(self):
+        self.client = Client()
+        self.brand = Brand.objects.create(name="Toyota")
+        self.seller = User.objects.create_user(
+            username="seller",
+            email="seller@test.com",
+            password="testpass123",
+            role="admin",
+        )
+        self.customer = User.objects.create_user(
+            username="customer",
+            email="customer@test.com",
+            password="testpass123",
+            role="customer",
+        )
+
+    def test_create_vehicle_seller(self):
+        """Verifica que un vendedor pueda crear un vehículo."""
+        self.client.force_login(self.seller)
+        response = self.client.post(
+            reverse("vehicles:create"),
+            {
+                "brand": self.brand.id,
+                "model": "Camry",
+                "year": 2021,
+                "price": 25000.00,
+                "mileage": 10000,
+                "transmission": "automatic",
+                "fuel_type": "gasoline",
+                "status": "used",
+                "description": "Excelente estado",
+                "is_active": True,
+            },
+        )
+        self.assertEqual(response.status_code, 302)  # Redirección
+        self.assertEqual(Vehicle.objects.count(), 1)
+        self.assertEqual(Vehicle.objects.first().created_by, self.seller)
+
+    def test_create_vehicle_customer_forbidden(self):
+        """Verifica que un cliente NO pueda crear un vehículo."""
+        self.client.force_login(self.customer)
+        response = self.client.get(reverse("vehicles:create"))
+        self.assertEqual(response.status_code, 403)  # Forbidden
+
+    def test_create_vehicle_unauthenticated(self):
+        """Verifica que usuarios no autenticados no puedan crear vehículos."""
+        response = self.client.get(reverse("vehicles:create"))
+        self.assertRedirects(
+            response, f'/users/login/?next={reverse("vehicles:create")}'
+        )
+
+
+class VehicleUpdateViewTest(TestCase):
+    """Pruebas para VehicleUpdateView."""
+
+    def setUp(self):
+        self.client = Client()
+        self.brand = Brand.objects.create(name="Toyota")
+        self.owner = User.objects.create_user(
+            username="owner",
+            email="owner@test.com",
+            password="testpass123",
+            role="admin",
+        )
+
+        self.other_user = User.objects.create_user(
+            username="other",
+            email="other@test.com",
+            password="testpass123",
+            role="admin",
+        )
+
+        self.admin_user = User.objects.create_superuser(
+            username="admin", email="admin@test.com", password="adminpass123"
+        )
+        self.vehicle = Vehicle.objects.create(
+            brand=self.brand,
+            model="Corolla",
+            year=2020,
+            price=20000.00,
+            mileage=15000,
+            transmission="automatic",
+            fuel_type="gasoline",
+            status="used",
+            created_by=self.owner,
+            is_active=True,
+            sold=False,
+        )
+
+    def test_update_vehicle_owner(self):
+        """Verifica que el propietario pueda actualizar su vehículo."""
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("vehicles:update", args=[self.vehicle.id]),
+            {
+                "brand": self.brand.id,
+                "model": "Camry",
+                "year": 2021,
+                "price": 26000.00,
+                "mileage": 12000,
+                "transmission": "automatic",
+                "fuel_type": "gasoline",
+                "status": "used",
+                "description": "Nuevo estado",
+                "is_active": True,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.vehicle.refresh_from_db()
+        self.assertEqual(self.vehicle.model, "Camry")
+        self.assertEqual(self.vehicle.price, 26000.00)
+
+    def test_update_vehicle_other_user_forbidden(self):
+        """Verifica que otro usuario NO pueda actualizar el vehículo (a menos que sea admin)."""
+        self.client.force_login(self.other_user)  # other_user es admin
+        response = self.client.get(reverse("vehicles:update", args=[self.vehicle.id]))
+        self.assertEqual(response.status_code, 200)  # Admin puede ver el formulario
+
+    def test_update_vehicle_admin_allowed(self):
+        """Verifica que un administrador pueda actualizar cualquier vehículo."""
+        self.client.force_login(self.admin_user)
+        response = self.client.post(
+            reverse("vehicles:update", args=[self.vehicle.id]),
+            {
+                "brand": self.brand.id,
+                "model": "Prius",
+                "year": 2022,
+                "price": 30000.00,
+                "mileage": 5000,
+                "transmission": "automatic",
+                "fuel_type": "hybrid",
+                "status": "new",
+                "description": "Vehiculo híbrido",
+                "is_active": True,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.vehicle.refresh_from_db()
+        self.assertEqual(self.vehicle.model, "Prius")
+
+
+class VehicleDeleteViewTest(TestCase):
+    """Pruebas para VehicleDeleteView."""
+
+    def setUp(self):
+        self.client = Client()
+        self.brand = Brand.objects.create(name="Toyota")
+        self.owner = User.objects.create_user(
+            username="owner",
+            email="owner@test.com",
+            password="testpass123",
+            role="admin",
+        )
+
+        self.other_user = User.objects.create_user(
+            username="other",
+            email="other@test.com",
+            password="testpass123",
+            role="admin",
+        )
+
+        self.vehicle = Vehicle.objects.create(
+            brand=self.brand,
+            model="Corolla",
+            year=2020,
+            price=20000.00,
+            mileage=15000,
+            transmission="automatic",
+            fuel_type="gasoline",
+            status="used",
+            created_by=self.owner,
+            is_active=True,
+            sold=False,
+        )
+
+    def test_delete_vehicle_owner(self):
+        """Verifica que el propietario pueda eliminar su vehículo (soft delete)."""
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("vehicles:delete", args=[self.vehicle.id]))
+        self.assertEqual(response.status_code, 302)
+        # Recargar desde la base de datos (debe existir porque es soft delete)
+        self.vehicle.refresh_from_db()
+        self.assertFalse(self.vehicle.is_active)
+        self.assertTrue(self.vehicle.sold)
+
+    def test_delete_vehicle_other_user_forbidden(self):
+        """Verifica que otro usuario NO pueda eliminar el vehículo."""
+        self.client.force_login(self.other_user)
+        response = self.client.get(reverse("vehicles:delete", args=[self.vehicle.id]))
+        self.assertEqual(response.status_code, 403)
+
+========== ./vehicles/forms.py ==========
+from django import forms
+
+from .models import Brand, Vehicle, VehicleImage
+
+
+class VehicleForm(forms.ModelForm):
+    class Meta:
+        model = Vehicle
+        fields = [
+            "brand",
+            "model",
+            "year",
+            "price",
+            "mileage",
+            "transmission",
+            "fuel_type",
+            "status",
+            "description",
+            "main_image",
+            "is_active",
+        ]
+        labels = {
+            "brand": "Marca",
+            "model": "Modelo",
+            "year": "Año",
+            "price": "Precio",
+            "mileage": "Kilometraje",
+            "transmission": "Transmisión",
+            "fuel_type": "Tipo de combustible",
+            "status": "Estado",
+            "description": "Descripción",
+            "main_image": "Imagen principal",
+            "is_active": "Activo",
+        }
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 4}),
+        }
+
+
+class VehicleImageForm(forms.ModelForm):
+    class Meta:
+        model = VehicleImage
+        fields = ["image", "is_primary"]
+
+
+class BrandForm(forms.ModelForm):
+    class Meta:
+        model = Brand
+        fields = ["name", "logo"]
+
+========== ./vehicles/apps.py ==========
+from django.apps import AppConfig
+
+
+class VehiclesConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "vehicles"
+
+========== ./vehicles/templates/vehicles/form.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if object %}Editar{% else %}Publicar{% endif %} vehículo - Concesionario{% endblock %}
+
+{% block content %}
+<div class="container form-container">
+  <div class="form-card">
+    <h2><i class="fas fa-{% if object %}edit{% else %}plus-circle{% endif %}"></i> 
+      {% if object %}Editar{% else %}Publicar{% endif %} vehículo
+    </h2>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="form-group">
+        {{ form.as_p }}
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-hero">
+          <i class="fas fa-save"></i> Guardar
+        </button>
+        <a href="{% url 'vehicles:list' %}" class="btn-outline-gold">
+          <i class="fas fa-times"></i> Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .form-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 2rem 0;
+  }
+  .form-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    max-width: 700px;
+    width: 100%;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--transition);
+  }
+  .form-card:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+  .form-card h2 {
+    font-weight: 300;
+    font-size: 1.8rem;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+  }
+  .form-card h2 i {
+    color: var(--color-accent);
+    margin-right: 0.5rem;
+  }
+  .form-card .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  .form-card .form-group input,
+  .form-card .form-group select,
+  .form-card .form-group textarea {
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.8rem;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    width: 100%;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .form-card .form-group input:focus,
+  .form-card .form-group select:focus,
+  .form-card .form-group textarea:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(212,168,55,0.15);
+    outline: none;
+  }
+  body.dark-mode .form-card .form-group input,
+  body.dark-mode .form-card .form-group select,
+  body.dark-mode .form-card .form-group textarea {
+    background: var(--bg-card);
+  }
+  .form-card .form-group label {
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.1rem;
+  }
+  .form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .form-actions .btn-hero {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+  .form-actions .btn-outline-gold {
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  @media (max-width: 480px) {
+    .form-card {
+      padding: 1.5rem;
+    }
+    .form-actions {
+      flex-direction: column;
+    }
+    .form-actions .btn-hero,
+    .form-actions .btn-outline-gold {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %}
+
+========== ./vehicles/templates/vehicles/list.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Catálogo de Vehículos{% endblock %}
+
+{% block hero %}
+<!-- Hero (estilo concesionario) -->
+<section class="hero">
+  <img src="{% static 'img/hero-car.jpg' %}" alt="" />
+  <div class="hero-content">
+    <div class="badge">Edición Limitada</div>
+    <h1><span>CONCESIONARIO</span></h1>
+    <p>Descubre la nueva era del lujo sobre ruedas.</p>
+    <a href="#catalogo" class="btn-hero">Explorar</a>
+  </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="section-header" id="catalogo">
+  <h2>Nuestra selección</h2>
+  <p>Vehículos que combinan potencia, elegancia y tecnología de vanguardia.</p>
+</div>
+
+<div class="vehicles-grid">
+  {% for vehicle in vehicles %}
+    <div class="card-vehicle">
+      <div class="card-img-wrapper">
+        {% if vehicle.main_image %}
+          <img src="{{ vehicle.main_image.url }}" alt="{{ vehicle }}" />
+        {% else %}
+          <img src="{% static 'img/no-image.png' %}" alt="Sin imagen" />
+        {% endif %}
+        <!-- Overlay con especificaciones (simuladas) -->
+        <div class="card-img-overlay">
+          <div class="spec-item"><strong>340 HP</strong> Potencia</div>
+          <div class="spec-item"><strong>4.3 s</strong> 0-100</div>
+          <div class="spec-item"><strong>250 km/h</strong> Vel. máx</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">
+          {{ vehicle.brand.name }} {{ vehicle.model }}
+          <!-- Etiqueta de estado -->
+          <span class="badge-status 
+            {% if vehicle.sold %}sold
+            {% elif vehicle.reserved %}reserved
+            {% elif vehicle.status == 'new' %}new
+            {% else %}used{% endif %}">
+            {% if vehicle.sold %}
+              Vendido
+            {% elif vehicle.reserved %}
+              Reservado
+            {% else %}
+              {{ vehicle.get_status_display }}
+            {% endif %}
+          </span>
+        </div>
+        <div class="card-sub">
+          <span><i class="fas fa-calendar-alt"></i> {{ vehicle.year }}</span>
+          <span><i class="fas fa-tachometer-alt"></i> {{ vehicle.mileage }} km</span>
+          <span><i class="fas fa-cog"></i> {{ vehicle.get_transmission_display }}</span>
+        </div>
+        <div class="price-row">
+          <span class="price">${{ vehicle.price }} <small>+ imp.</small></span>
+          <a href="{% url 'vehicles:detail' vehicle.pk %}" class="btn-outline-gold">Descubrir</a>
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <p class="text-center" style="grid-column:1/-1; color: var(--text-muted);">No hay vehículos disponibles.</p>
+  {% endfor %}
+</div>
+
+<!-- Paginación -->
+{% if is_paginated %}
+<div class="pagination">
+  {% if page_obj.has_previous %}
+    <a href="?page=1">&laquo;</a>
+    <a href="?page={{ page_obj.previous_page_number }}">&lsaquo;</a>
+  {% endif %}
+  {% for num in page_obj.paginator.page_range %}
+    {% if page_obj.number == num %}
+      <span class="active"><span>{{ num }}</span></span>
+    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+      <a href="?page={{ num }}">{{ num }}</a>
+    {% endif %}
+  {% endfor %}
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}">&rsaquo;</a>
+    <a href="?page={{ page_obj.paginator.num_pages }}">&raquo;</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+========== ./vehicles/templates/vehicles/confirm_delete.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Eliminar vehículo{% endblock %}
+
+{% block content %}
+<div class="container confirm-container">
+  <div class="confirm-card">
+    <h2><i class="fas fa-exclamation-triangle"></i> Eliminar vehículo</h2>
+    <p>¿Estás seguro de que quieres eliminar el vehículo <strong>{{ object }}</strong>?</p>
+    <p class="text-muted">Esta acción no se puede deshacer.</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="confirm-actions">
+        <button type="submit" class="btn-hero" style="background:#d43737; border-color:#d43737;">
+          <i class="fas fa-trash"></i> Eliminar
+        </button>
+        <a href="{% url 'vehicles:list' %}" class="btn-outline-gold">
+          <i class="fas fa-times"></i> Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .confirm-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+  }
+  .confirm-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: var(--shadow-card);
+    text-align: center;
+  }
+  .confirm-card h2 {
+    font-weight: 300;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+  }
+  .confirm-card h2 i {
+    color: #d43737;
+    margin-right: 0.5rem;
+  }
+  .confirm-card p {
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+  .confirm-card .text-muted {
+    font-size: 0.85rem;
+  }
+  .confirm-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .confirm-actions .btn-hero {
+    background: #d43737;
+    border-color: #d43737;
+  }
+  .confirm-actions .btn-hero:hover {
+    background: #b32a2a;
+    border-color: #b32a2a;
+  }
+  .confirm-actions .btn-hero,
+  .confirm-actions .btn-outline-gold {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+</style>
+{% endblock %}
+
+========== ./vehicles/templates/vehicles/detail.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ vehicle.brand.name }} {{ vehicle.model }}{% endblock %}
+
+{% block content %}
+<div class="detail-container">
+  <!-- Columna izquierda: Imagen -->
+  <div class="detail-image">
+    {% if vehicle.main_image %}
+      <img src="{{ vehicle.main_image.url }}" alt="{{ vehicle }}" />
+    {% else %}
+      <img src="{% static 'img/no-image.png' %}" alt="Sin imagen" />
+    {% endif %}
+  </div>
+
+  <!-- Columna derecha: Información -->
+  <div class="detail-info">
+    <h1>{{ vehicle.brand.name }} {{ vehicle.model }}</h1>
+
+    <div class="detail-meta">
+      <span><i class="fas fa-calendar-alt"></i> {{ vehicle.year }}</span>
+      <span><i class="fas fa-tachometer-alt"></i> {{ vehicle.mileage }} km</span>
+      <span><i class="fas fa-cog"></i> {{ vehicle.get_transmission_display }}</span>
+      <span><i class="fas fa-gas-pump"></i> {{ vehicle.get_fuel_type_display }}</span>
+    </div>
+
+    <div class="detail-price">
+      ${{ vehicle.price }} <small>+ impuestos</small>
+    </div>
+
+    <div class="detail-description">
+      {{ vehicle.description|linebreaks }}
+    </div>
+
+    <!-- Acciones -->
+    <div class="detail-actions">
+      {% if vehicle.sold %}
+        <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
+          <i class="fas fa-check-circle"></i> Vehículo vendido
+        </div>
+      {% elif pending_offer %}
+        <!-- Hay una oferta pendiente -->
+        {% if pending_offer.buyer == user %}
+          <!-- El usuario que hizo la oferta -->
+          <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
+            <i class="fas fa-clock"></i> Tu oferta de ${{ pending_offer.offered_price }} está en revisión
+          </div>
+        {% else %}
+          <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
+            <i class="fas fa-clock"></i> Oferta en revisión
+          </div>
+        {% endif %}
+      {% elif user.is_authenticated and user != vehicle.created_by %}
+        <!-- Formulario para hacer una oferta -->
+        <form method="post" action="{% url 'sales:make_offer' vehicle.pk %}" style="width:100%;">
+          {% csrf_token %}
+          <div class="mb-3" style="text-align:left;">
+            <label for="offered_price" class="form-label" style="color:var(--text-secondary);">Tu oferta</label>
+            <div class="input-group">
+              <span class="input-group-text" style="background:var(--bg-body); border-color:var(--border-color); color:var(--text-primary);">$</span>
+              <input type="number" name="offered_price" id="offered_price" 
+                     class="form-control" step="0.01" min="1" max="{{ vehicle.price|add:'-0.01' }}"
+                     placeholder="Menor a ${{ vehicle.price }}" required>
+            </div>
+            <small class="text-muted" style="color:var(--text-muted);">El precio debe ser menor a ${{ vehicle.price }}</small>
+          </div>
+          <button type="submit" class="btn-hero" style="width:100%;">
+            <i class="fas fa-gavel"></i> Hacer oferta
+          </button>
+        </form>
+      {% elif user == vehicle.created_by %}
+        <p style="color: var(--text-muted); width:100%;">
+          Este vehículo es tuyo. Puedes <a href="{% url 'vehicles:update' vehicle.pk %}" style="color:var(--color-accent);">editarlo</a> o <a href="{% url 'vehicles:delete' vehicle.pk %}" style="color:var(--color-accent);">eliminarlo</a>.
+        </p>
+      {% else %}
+        <p style="color: var(--text-muted); width:100%;">Inicia sesión para hacer una oferta.</p>
+      {% endif %}
+    </div>
+
+    <!-- Tarjeta del vendedor (siempre visible) -->
+    <div class="seller-card">
+      <h5><i class="fas fa-user"></i> Vendedor</h5>
+      <p><i class="fas fa-user-circle"></i> {{ vehicle.created_by.get_full_name|default:vehicle.created_by.username }}</p>
+      <p><i class="fas fa-envelope"></i> {{ vehicle.created_by.email }}</p>
+      <p><i class="fas fa-phone"></i> {{ vehicle.created_by.profile.phone|default:"No especificado" }}</p>
+      <p><i class="fas fa-map-pin"></i> {{ vehicle.created_by.profile.address|default:"No especificada" }}</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+========== ./vehicles/__init__.py ==========
+
+========== ./vehicles/urls.py ==========
+from django.urls import path
+
+from . import views
+
+app_name = "vehicles"
+
+urlpatterns = [
+    path("", views.VehicleListView.as_view(), name="list"),
+    path("<int:pk>/", views.VehicleDetailView.as_view(), name="detail"),
+    path("create/", views.VehicleCreateView.as_view(), name="create"),
+    path("<int:pk>/update/", views.VehicleUpdateView.as_view(), name="update"),
+    path("<int:pk>/delete/", views.VehicleDeleteView.as_view(), name="delete"),
+]
+
+========== ./vehicles/admin.py ==========
+from django.contrib import admin
+
+from .models import Brand, Vehicle, VehicleImage
+
+admin.site.register(Brand)
+admin.site.register(Vehicle)
+admin.site.register(VehicleImage)
+
+========== ./vehicles/models.py ==========
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.validators import FileExtensionValidator
+from django.db import models, transaction
+
+User = get_user_model()
+
+
+class Brand(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    logo = models.ImageField(upload_to="brands/", blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Vehicle(models.Model):
+    TRANSMISSION_CHOICES = (
+        ("manual", "Manual"),
+        ("automatic", "Automática"),
+        ("cvt", "CVT"),
+    )
+    FUEL_CHOICES = (
+        ("gasoline", "Gasolina"),
+        ("diesel", "Diésel"),
+        ("electric", "Eléctrico"),
+        ("hybrid", "Híbrido"),
+    )
+    STATUS_CHOICES = (
+        ("new", "Nuevo"),
+        ("used", "Usado"),
+    )
+
+    brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name="vehicles")
+    model = models.CharField(max_length=100)
+    year = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=12, decimal_places=2)
+    mileage = models.PositiveIntegerField(help_text="Kilometraje (km)")
+    transmission = models.CharField(max_length=20, choices=TRANSMISSION_CHOICES)
+    fuel_type = models.CharField(max_length=20, choices=FUEL_CHOICES)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="used")
+    description = models.TextField(blank=True)
+    main_image = models.ImageField(
+        upload_to="vehicles/",
+        blank=True,
+        null=True,
+        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "gif"])],
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="vehicles_created"
+    )
+    is_active = models.BooleanField(default=True)
+    sold = models.BooleanField(default=False)
+    reserved = models.BooleanField(default=False)
+    reserved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reserved_vehicles",
+    )
+    view_count = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.brand.name} {self.model} ({self.year})"
+
+    def mark_as_sold(self, buyer):
+        """Marca el vehículo como vendido (con transacción)."""
+        from sales.models import Sale
+
+        with transaction.atomic():
+            self.sold = True
+            self.is_active = False
+            self.save()
+            return Sale.objects.create(
+                vehicle=self,
+                buyer=buyer,
+                seller=self.created_by,
+                amount=self.price,
+                status="completed",
+            )
+
+
+class VehicleImage(models.Model):
+    vehicle = models.ForeignKey(
+        Vehicle, on_delete=models.CASCADE, related_name="images"
+    )
+    image = models.ImageField(upload_to="vehicles/")
+    is_primary = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Imagen de {self.vehicle}"
+
+========== ./vehicles/views.py ==========
+from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
+from django.db.models import Q
+from django.shortcuts import redirect
+from django.urls import reverse_lazy
+from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
+                                  UpdateView)
+
+from analytics.mixins import TrackVehicleViewMixin
+from core.mixins import (AdminRequiredMixin, OwnerOrAdminRequiredMixin,
+                         SellerRequiredMixin)
+# vehicles/views.py
+from sales.models import Sale  # <-- Agregar esta línea
+
+from .forms import VehicleForm
+from .models import Vehicle
+
+
+class VehicleListView(ListView):
+    model = Vehicle
+    template_name = "vehicles/list.html"
+    context_object_name = "vehicles"
+    paginate_by = 12
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        qs = (
+            super()
+            .get_queryset()
+            .select_related("brand", "created_by")
+            .filter(is_active=True)
+        )
+
+        # Filtros con validación
+        brand = self.request.GET.get("brand")
+        if brand:
+            qs = qs.filter(brand__name__icontains=brand)
+
+        # Validar y sanitizar precios
+        min_price = self.request.GET.get("min_price")
+        if min_price and min_price.isdigit():
+            qs = qs.filter(price__gte=int(min_price))
+
+        max_price = self.request.GET.get("max_price")
+        if max_price and max_price.isdigit():
+            qs = qs.filter(price__lte=int(max_price))
+
+        # Búsqueda por texto (opcional)
+        q = self.request.GET.get("q")
+        if q:
+            qs = qs.filter(
+                Q(model__icontains=q)
+                | Q(brand__name__icontains=q)
+                | Q(description__icontains=q)
+            )
+
+        return qs
+
+
+class VehicleDetailView(TrackVehicleViewMixin, DetailView):
+    model = Vehicle
+    template_name = "vehicles/detail.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Verificar si el usuario puede editar este vehículo
+        vehicle = self.get_object()
+        user = self.request.user
+
+        pending_offer = Sale.objects.filter(
+            vehicle=vehicle, status="offer_pending"
+        ).first()
+        context["pending_offer"] = pending_offer
+
+        context["can_edit"] = user.is_authenticated and (
+            user.role == "admin" or user.is_superuser or vehicle.created_by == user
+        )
+        return context
+
+
+class VehicleCreateView(LoginRequiredMixin, SellerRequiredMixin, CreateView):
+    model = Vehicle
+    form_class = VehicleForm
+    template_name = "vehicles/form.html"
+    success_url = reverse_lazy("vehicles:list")
+
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        messages.success(self.request, "¡Vehículo publicado exitosamente!")
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        messages.error(
+            self.request, "Error al publicar el vehículo. Revisa los campos."
+        )
+        return super().form_invalid(form)
+
+
+class VehicleUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateView):
+    model = Vehicle
+    form_class = VehicleForm
+    template_name = "vehicles/form.html"
+    success_url = reverse_lazy("vehicles:list")
+
+    def form_valid(self, form):
+        messages.success(self.request, "¡Vehículo actualizado exitosamente!")
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        messages.error(
+            self.request, "Error al actualizar el vehículo. Revisa los campos."
+        )
+        return super().form_invalid(form)
+
+
+class VehicleDeleteView(LoginRequiredMixin, OwnerOrAdminRequiredMixin, DeleteView):
+    model = Vehicle
+    template_name = "vehicles/confirm_delete.html"
+    success_url = reverse_lazy("vehicles:list")
+
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        self.object.is_active = False
+        self.object.sold = True
+        self.object.save()
+        messages.success(request, "Vehículo eliminado correctamente.")
+        return redirect(self.success_url)
+
+========== ./users/tests.py ==========
+from django.contrib.auth import get_user_model
+from django.test import Client, TestCase
+from django.urls import reverse
+
+from .models import Profile
+
+User = get_user_model()
+
+
+class UserModelTest(TestCase):
+    """Pruebas para el modelo User personalizado."""
+
+    def test_create_user(self):
+        """Verifica que se pueda crear un usuario."""
+        user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            role="customer",
+        )
+        self.assertEqual(user.username, "testuser")
+        self.assertEqual(user.email, "test@example.com")
+        self.assertEqual(user.role, "customer")
+        self.assertTrue(user.check_password("testpass123"))
+
+    def test_create_superuser(self):
+        """Verifica que se pueda crear un superusuario."""
+        admin = User.objects.create_superuser(
+            username="admin", email="admin@example.com", password="adminpass123"
+        )
+        self.assertTrue(admin.is_superuser)
+        self.assertTrue(admin.is_staff)
+
+
+class ProfileModelTest(TestCase):
+    """Pruebas para el modelo Profile."""
+
+    def test_profile_creation_signal(self):
+        """Verifica que se cree un perfil automáticamente al crear usuario."""
+        user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        self.assertTrue(hasattr(user, "profile"))
+        self.assertEqual(user.profile.user, user)
+
+
+class RegistrationTest(TestCase):
+    """Pruebas para el registro de usuarios."""
+
+    def setUp(self):
+        self.client = Client()
+
+    def test_register_view(self):
+        """Verifica que el registro de usuario funcione."""
+        response = self.client.post(
+            reverse("users:register"),
+            {
+                "username": "newuser",
+                "email": "newuser@example.com",
+                "password1": "SecurePass123!",
+                "password2": "SecurePass123!",
+                "role": "customer",
+            },
+        )
+        self.assertEqual(response.status_code, 302)  # Redirección
+        self.assertEqual(User.objects.count(), 1)
+        user = User.objects.first()
+        self.assertEqual(user.username, "newuser")
+        self.assertEqual(user.email, "newuser@example.com")
+        self.assertEqual(user.role, "customer")
+        self.assertTrue(hasattr(user, "profile"))
+
+
+class LoginTest(TestCase):
+    """Pruebas para el inicio de sesión."""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+
+    def test_login_view(self):
+        """Verifica que el login funcione correctamente."""
+        response = self.client.post(
+            reverse("users:login"), {"username": "testuser", "password": "testpass123"}
+        )
+        self.assertEqual(response.status_code, 302)  # Redirección
+        # Verificar que el usuario está autenticado
+        response = self.client.get(reverse("vehicles:list"))
+        self.assertEqual(response.context["user"].username, "testuser")
+
+
+class ProfileViewTest(TestCase):
+    """Pruebas para ProfileView."""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            role="admin",
+        )
+
+    def test_profile_view_authenticated(self):
+        """Verifica que un usuario autenticado pueda ver su perfil."""
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("users:profile"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "testuser")
+
+    def test_profile_view_unauthenticated(self):
+        """Verifica que usuarios no autenticados sean redirigidos."""
+        response = self.client.get(reverse("users:profile"))
+        self.assertRedirects(response, f'/users/login/?next={reverse("users:profile")}')
+
+    def test_profile_update(self):
+        """Verifica que el perfil se pueda actualizar."""
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("users:profile"),
+            {
+                "username": "updateduser",
+                "email": "updated@example.com",
+                "first_name": "New",
+                "last_name": "Name",
+                "phone": "123456789",
+                "address": "Calle Falsa 123",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "updateduser")
+        self.assertEqual(self.user.email, "updated@example.com")
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.phone, "123456789")
+
+========== ./users/forms.py ==========
+from django import forms
+from django.contrib.auth.forms import UserCreationForm
+from django.core.exceptions import ValidationError
+
+from .models import Profile, User
+from .services import verify_email_api
+from .validators import validate_email_domain
+
+
+class CustomUserCreationForm(UserCreationForm):
+    email = forms.EmailField(
+        required=True,
+        label="Correo electrónico",
+        validators=[validate_email_domain],  # <-- Agregar validador
+    )
+
+    class Meta:
+        model = User
+        fields = ("username", "email", "password1", "password2")
+
+    def clean_email(self):
+        email = self.cleaned_data.get("email")
+        if not verify_email_api(email):
+            raise ValidationError("El correo electrónico no parece ser válido.")
+        if email:
+            email = email.lower()  # Normalizar a minúsculas
+            if User.objects.filter(email__iexact=email).exists():
+                raise ValidationError("Este correo electrónico ya está registrado.")
+        return email
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email = self.cleaned_data["email"]
+        if commit:
+            user.save()
+        return user
+
+
+class UserAdminForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ("username", "email", "role", "is_active", "is_staff", "is_superuser")
+
+
+# ----- ESTE ES EL FORMULARIO QUE DEBES USAR PARA EL PERFIL -----
+class ProfileForm(forms.ModelForm):
+    phone = forms.CharField(max_length=20, required=False)
+    address = forms.CharField(widget=forms.Textarea, required=False)
+    payment_email = forms.EmailField(required=False, validators=[validate_email_domain])
+    bank_account = forms.CharField(max_length=100, required=False)
+    payment_phone = forms.CharField(max_length=20, required=False)
+
+    class Meta:
+        model = User
+        fields = ("username", "email", "first_name", "last_name")
+
+    def clean_email(self):
+        email = self.cleaned_data.get("email")
+        if not verify_email_api(email):
+            raise ValidationError("El correo electrónico no parece ser válido.")
+        if email:
+            email = email.lower()
+            # Excluir al propio usuario de la consulta (cuando se edita)
+            if self.instance and self.instance.pk:
+                if (
+                    User.objects.filter(email__iexact=email)
+                    .exclude(pk=self.instance.pk)
+                    .exists()
+                ):
+                    raise ValidationError(
+                        "Este correo electrónico ya está registrado por otro usuario."
+                    )
+            else:
+                # Caso de creación (aunque no se usa aquí)
+                if User.objects.filter(email__iexact=email).exists():
+                    raise ValidationError("Este correo electrónico ya está registrado.")
+        return email
+
+    def save(self, commit=True):
+        user = super().save(commit=commit)
+        profile, created = Profile.objects.get_or_create(user=user)
+        profile.phone = self.cleaned_data["phone"]
+        profile.address = self.cleaned_data["address"]
+        profile.payment_email = self.cleaned_data["payment_email"]
+        profile.bank_account = self.cleaned_data["bank_account"]
+        profile.payment_phone = self.cleaned_data["payment_phone"]
+        if commit:
+            profile.save()
+        return user
+
+========== ./users/validators.py ==========
+import re
+
+import dns.resolver
+from django.core.exceptions import ValidationError
+
+
+def validate_email_domain(value):
+    try:
+        domain = value.split("@")[1]
+        dns.resolver.resolve(domain, "MX")
+    except (IndexError, dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
+        raise ValidationError(
+            "El dominio del correo electrónico no es válido o no tiene servidores de correo."
+        )
+    except dns.resolver.NoNameservers:
+        raise ValidationError("El dominio del correo electrónico no es válido.")
+
+========== ./users/apps.py ==========
+from django.apps import AppConfig
+
+
+class UsersConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "users"
+
+    def ready(self):
+        import users.models  # o import users.models (si las señales están ahí)
+
+========== ./users/templates/users/profile.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Mi Perfil - TruckSmarter{% endblock %}
+
+{% block content %}
+<div class="container profile-container">
+
+  <!-- Encabezado -->
+  <div class="profile-header">
+    <div>
+      <h1><i class="fas fa-user-circle"></i> Mi Perfil</h1>
+      <p class="text-muted">Gestiona tus datos personales y preferencias</p>
+    </div>
+    <span class="role-badge role-{{ user.role }}">
+      <i class="fas fa-shield-alt"></i> {{ user.get_role_display }}
+    </span>
+  </div>
+
+  <!-- Layout de dos columnas (usando grid) -->
+  <div class="profile-grid">
+
+    <!-- COLUMNA IZQUIERDA: Formulario -->
+    <div class="profile-form-card">
+      <div class="card-header-custom">
+        <h5><i class="fas fa-edit"></i> Editar datos personales</h5>
+      </div>
+      <div class="card-body-custom">
+        <form method="post" id="profile-form">
+          {% csrf_token %}
+
+          <!-- Mostrar errores del formulario -->
+          {% if form.errors %}
+            <div class="form-errors">
+              <ul>
+                {% for field, errors in form.errors.items %}
+                  {% for error in errors %}
+                    <li><strong>{{ field|capfirst }}:</strong> {{ error }}</li>
+                  {% endfor %}
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+
+          <!-- Datos del usuario -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="id_username">Usuario</label>
+              {{ form.username }}
+            </div>
+            <div class="form-group">
+              <label for="id_email">Email</label>
+              {{ form.email }}
+            </div>
+            <div class="form-group">
+              <label for="id_first_name">Nombre</label>
+              {{ form.first_name }}
+            </div>
+            <div class="form-group">
+              <label for="id_last_name">Apellido</label>
+              {{ form.last_name }}
+            </div>
+          </div>
+
+          <hr>
+
+          <!-- Información de contacto -->
+          <h6><i class="fas fa-address-card"></i> Información de contacto</h6>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="id_phone">Teléfono</label>
+              {{ form.phone }}
+            </div>
+            <div class="form-group">
+              <label for="id_address">Dirección</label>
+              {{ form.address }}
+            </div>
+          </div>
+
+          <hr>
+
+          <!-- Datos de pago (comentados) 
+          <h6><i class="fas fa-credit-card"></i> Datos de pago</h6>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="id_payment_email">Email de pago</label>
+              {{ form.payment_email }}
+              <small class="help-text">Correo asociado a tu cuenta de pago (PayPal, Stripe, etc.)</small>
+            </div>
+            <div class="form-group">
+              <label for="id_payment_phone">Teléfono de pago</label>
+              {{ form.payment_phone }}
+            </div>
+            <div class="form-group">
+              <label for="id_bank_account">Cuenta bancaria / PayPal</label>
+              {{ form.bank_account }}
+            </div>
+          </div>
+          -->
+
+          <div class="form-actions">
+            <button type="submit" class="btn-hero" id="profile-submit">
+              <i class="fas fa-save"></i> Guardar cambios
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: Información y acciones -->
+    <div class="profile-sidebar">
+
+      <!-- Tarjeta de información de cuenta -->
+      <div class="info-card">
+        <div class="card-header-custom">
+          <h5><i class="fas fa-id-badge"></i> Información de cuenta</h5>
+        </div>
+        <div class="card-body-custom">
+          <div class="user-avatar">
+            <i class="fas fa-user-circle"></i>
+            <div>
+              <h5>{{ user.get_full_name|default:user.username }}</h5>
+              <p class="text-muted">{{ user.email }}</p>
+            </div>
+          </div>
+          <hr>
+          <div class="info-row">
+            <div>
+              <small class="text-muted">Teléfono</small>
+              <span>{{ profile.phone|default:"No especificado" }}</span>
+            </div>
+            <div>
+              <small class="text-muted">Rol</small>
+              <span class="role-badge role-{{ user.role }}">{{ user.get_role_display }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mis vehículos (solo administradores) -->
+      {% if user.role == 'admin' %}
+      <div class="info-card">
+        <div class="card-header-custom">
+          <div class="header-actions">
+            <h5><i class="fas fa-truck"></i> Mis vehículos</h5>
+            <a href="{% url 'vehicles:create' %}" class="btn-outline-gold btn-sm">
+              <i class="fas fa-plus"></i> Publicar
+            </a>
+          </div>
+        </div>
+        <div class="card-body-custom">
+          {% if vehicles %}
+            <div class="vehicle-list">
+              {% for vehicle in vehicles %}
+                <div class="vehicle-item">
+                  <div class="vehicle-thumb">
+                    {% if vehicle.main_image %}
+                      <img src="{{ vehicle.main_image.url }}" alt="{{ vehicle }}" />
+                    {% else %}
+                      <i class="fas fa-car"></i>
+                    {% endif %}
+                  </div>
+                  <div class="vehicle-info">
+                    <h6>{{ vehicle.brand.name }} {{ vehicle.model }}</h6>
+                    <span class="price">${{ vehicle.price }}</span>
+                    {% if vehicle.sold %}
+                      <span class="badge-sold">Vendido</span>
+                    {% elif vehicle.reserved %}
+                      <span class="badge-sold" style="background:#f0ad4e; color:#fff;">Reservado</span>
+                    {% endif %}
+                  </div>
+                  <div class="vehicle-actions">
+                    <a href="{% url 'vehicles:update' vehicle.pk %}" class="btn-icon" title="Editar">
+                      <i class="fas fa-pencil-alt"></i>
+                    </a>
+                    <a href="{% url 'vehicles:delete' vehicle.pk %}" class="btn-icon danger" title="Eliminar">
+                      <i class="fas fa-trash"></i>
+                    </a>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-muted text-center">Aún no has publicado vehículos.</p>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Historial de compras -->
+      <div class="info-card">
+        <div class="card-header-custom">
+          <h5><i class="fas fa-clock"></i> Historial de compras</h5>
+        </div>
+        <div class="card-body-custom">
+          {% if user.purchases.all %}
+            <div class="purchase-list">
+              {% for sale in user.purchases.all|slice:":5" %}
+                <div class="purchase-item">
+                  <div>
+                    <span class="purchase-vehicle">{{ sale.vehicle.brand.name }} {{ sale.vehicle.model }}</span>
+                    <br>
+                    <small class="text-muted">{{ sale.created_at|date:"d/m/Y" }}</small>
+                  </div>
+                  <span class="price-tag">${{ sale.amount }}</span>
+                </div>
+              {% endfor %}
+              {% if user.purchases.count > 5 %}
+                <div class="text-center">
+                  <a href="{% url 'sales:history' %}" class="btn-outline-gold btn-sm">Ver todas</a>
+                </div>
+              {% endif %}
+            </div>
+          {% else %}
+            <p class="text-muted text-center">No has realizado compras aún.</p>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ========================================
+     ESTILOS ESPECÍFICOS DEL PERFIL
+     (Complementan el CSS Ferrari‑inspired)
+     ======================================== */
+
+  /* Layout */
+  .profile-container {
+    padding: 2rem 0;
+  }
+  .profile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+  .profile-header h1 {
+    font-weight: 300;
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
+    letter-spacing: 0.04em;
+    color: var(--text-primary);
+    margin: 0;
+  }
+  .profile-header h1 i {
+    color: var(--color-accent);
+    margin-right: 0.6rem;
+  }
+  .profile-header .text-muted {
+    color: var(--text-muted);
+    font-weight: 300;
+    margin: 0;
+  }
+
+  .role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 1rem;
+    border-radius: 40px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .role-badge.role-admin {
+    background: rgba(212, 55, 55, 0.15);
+    color: #d43737;
+    border: 1px solid rgba(212, 55, 55, 0.2);
+  }
+  .role-badge.role-seller {
+    background: rgba(11, 126, 75, 0.15);
+    color: #0b7e4b;
+    border: 1px solid rgba(11, 126, 75, 0.2);
+  }
+  .role-badge.role-customer {
+    background: rgba(107, 114, 128, 0.15);
+    color: #6b7280;
+    border: 1px solid rgba(107, 114, 128, 0.2);
+  }
+  body.dark-mode .role-badge.role-admin {
+    background: rgba(212, 55, 55, 0.25);
+    color: #f87171;
+  }
+  body.dark-mode .role-badge.role-seller {
+    background: rgba(11, 126, 75, 0.25);
+    color: #6ee7b7;
+  }
+  body.dark-mode .role-badge.role-customer {
+    background: rgba(107, 114, 128, 0.25);
+    color: #9ca3af;
+  }
+
+  /* Grid de dos columnas */
+  .profile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  /* Tarjetas personalizadas */
+  .profile-form-card,
+  .info-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--transition);
+  }
+  .profile-form-card:hover,
+  .info-card:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  .card-header-custom {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .card-header-custom h5 {
+    font-weight: 400;
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+    color: var(--text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .card-header-custom h5 i {
+    color: var(--color-accent);
+  }
+
+  .card-body-custom {
+    padding: 1.5rem;
+  }
+
+  /* Formulario */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  .form-row .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+  .form-row .form-group label {
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.2rem;
+  }
+  .form-row .form-group input,
+  .form-row .form-group textarea,
+  .form-row .form-group select {
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.8rem;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    transition: border-color var(--transition), box-shadow var(--transition);
+    width: 100%;
+  }
+  .form-row .form-group input:focus,
+  .form-row .form-group textarea:focus,
+  .form-row .form-group select:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(212, 168, 55, 0.15);
+    outline: none;
+  }
+  body.dark-mode .form-row .form-group input,
+  body.dark-mode .form-row .form-group textarea,
+  body.dark-mode .form-row .form-group select {
+    background: var(--bg-card);
+  }
+  .help-text {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+  }
+
+  /* Avatar */
+  .user-avatar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .user-avatar i {
+    font-size: 3rem;
+    color: var(--color-accent);
+  }
+  .user-avatar h5 {
+    font-weight: 400;
+    font-size: 1.1rem;
+    margin: 0;
+    color: var(--text-primary);
+  }
+  .user-avatar p {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .info-row > div {
+    flex: 1;
+    min-width: 100px;
+  }
+  .info-row small {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+  .info-row span {
+    font-weight: 300;
+    color: var(--text-secondary);
+  }
+
+  /* Errores del formulario */
+  .form-errors {
+    background: rgba(212, 55, 55, 0.08);
+    border: 1px solid #d43737;
+    border-radius: var(--radius-sm);
+    padding: 0.8rem 1.2rem;
+    margin-bottom: 1.2rem;
+    color: #d43737;
+  }
+  .form-errors ul {
+    margin: 0;
+    padding-left: 1.2rem;
+  }
+  .form-errors ul li {
+    margin: 0.2rem 0;
+  }
+  body.dark-mode .form-errors {
+    background: rgba(212, 55, 55, 0.15);
+    border-color: #f87171;
+    color: #f87171;
+  }
+
+  /* Cambio de rol */
+  .role-upgrade {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .role-upgrade i {
+    font-size: 2rem;
+    color: var(--color-accent);
+    flex-shrink: 0;
+  }
+  .role-upgrade h6 {
+    font-weight: 400;
+    margin: 0 0 0.2rem 0;
+    color: var(--text-primary);
+  }
+  .role-upgrade p {
+    font-size: 0.85rem;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .border-accent {
+    border-color: var(--color-accent) !important;
+  }
+
+  /* Mis vehículos (mini lista) */
+  .vehicle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  .vehicle-item {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: var(--bg-body);
+    transition: background var(--transition);
+  }
+  .vehicle-item:hover {
+    background: var(--bg-card-hover);
+  }
+  .vehicle-thumb {
+    width: 50px;
+    height: 50px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .vehicle-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .vehicle-thumb i {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+  }
+  .vehicle-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .vehicle-info h6 {
+    font-weight: 400;
+    font-size: 0.9rem;
+    margin: 0;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .vehicle-info .price {
+    font-size: 0.85rem;
+    color: var(--color-accent);
+  }
+  .badge-sold {
+    background: rgba(212, 55, 55, 0.15);
+    color: #d43737;
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 0.05rem 0.6rem;
+    border-radius: 40px;
+    margin-left: 0.3rem;
+  }
+  body.dark-mode .badge-sold {
+    background: rgba(212, 55, 55, 0.25);
+    color: #f87171;
+  }
+  .vehicle-actions {
+    display: flex;
+    gap: 0.3rem;
+    flex-shrink: 0;
+  }
+  .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all var(--transition);
+    cursor: pointer;
+  }
+  .btn-icon:hover {
+    background: var(--bg-card-hover);
+    color: var(--color-accent);
+  }
+  .btn-icon.danger:hover {
+    color: #d43737;
+    background: rgba(212, 55, 55, 0.1);
+  }
+
+  /* Historial de compras */
+  .purchase-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .purchase-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .purchase-item:last-child {
+    border-bottom: none;
+  }
+  .purchase-vehicle {
+    font-weight: 400;
+    color: var(--text-primary);
+  }
+  .price-tag {
+    font-weight: 300;
+    color: var(--color-accent);
+    font-size: 0.95rem;
+  }
+
+  .header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  .btn-sm {
+    padding: 0.2rem 1rem;
+    font-size: 0.7rem;
+  }
+
+  /* ----- RESPONSIVE ----- */
+  @media (max-width: 1024px) {
+    .profile-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 640px) {
+    .profile-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .form-row {
+      grid-template-columns: 1fr;
+    }
+    .user-avatar {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .info-row {
+      flex-direction: column;
+    }
+    .role-upgrade {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .vehicle-item {
+      flex-wrap: wrap;
+    }
+    .vehicle-actions {
+      width: 100%;
+      justify-content: flex-end;
+    }
+    .form-actions {
+      justify-content: center;
+    }
+  }
+
+  /* ----- AJUSTES PARA MODO OSCURO ----- */
+  body.dark-mode .profile-form-card,
+  body.dark-mode .info-card {
+    background: var(--bg-card);
+  }
+  body.dark-mode .vehicle-item {
+    background: var(--bg-card);
+  }
+  body.dark-mode .vehicle-item:hover {
+    background: var(--bg-card-hover);
+  }
+  body.dark-mode .purchase-item {
+    border-color: var(--border-color);
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('profile-form');
+    const submitBtn = document.getElementById('profile-submit');
+
+    if (form && submitBtn) {
+      form.addEventListener('submit', function() {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+      });
+    }
+  });
+</script>
+{% endblock %}
+
+========== ./users/templates/users/login.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Iniciar sesión - TruckSmarter{% endblock %}
+
+{% block content %}
+<div class="container login-container">
+  <div class="login-card">
+    <h2><i class="fas fa-sign-in-alt"></i> Iniciar sesión</h2>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        {{ form.as_p }}
+      </div>
+      <button type="submit" class="btn-hero" style="width:100%;">
+        <i class="fas fa-arrow-right"></i> Iniciar sesión
+      </button>
+    </form>
+    <p class="mt-3 text-center">
+      ¿No tienes cuenta? <a href="{% url 'users:register' %}" style="color:var(--color-accent);">Regístrate</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+    padding: 2rem 0;
+  }
+  .login-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--transition);
+  }
+  .login-card:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+  .login-card h2 {
+    font-weight: 300;
+    font-size: 1.8rem;
+    text-align: center;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+  }
+  .login-card h2 i {
+    color: var(--color-accent);
+    margin-right: 0.5rem;
+  }
+  .login-card .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .login-card .form-group input,
+  .login-card .form-group select,
+  .login-card .form-group textarea {
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.8rem;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    width: 100%;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .login-card .form-group input:focus,
+  .login-card .form-group select:focus,
+  .login-card .form-group textarea:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(212,168,55,0.15);
+    outline: none;
+  }
+  body.dark-mode .login-card .form-group input,
+  body.dark-mode .login-card .form-group select,
+  body.dark-mode .login-card .form-group textarea {
+    background: var(--bg-card);
+  }
+  .login-card .form-group label {
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.1rem;
+  }
+  .login-card .btn-hero {
+    width: 100%;
+    justify-content: center;
+    margin-top: 0.5rem;
+  }
+  @media (max-width: 480px) {
+    .login-card {
+      padding: 1.5rem;
+    }
+  }
+</style>
+{% endblock %}
+
+========== ./users/templates/users/register.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Registro - TruckSmarter{% endblock %}
+
+{% block content %}
+<div class="container register-container">
+  <div class="register-card">
+    <h2><i class="fas fa-user-plus"></i> Registro</h2>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        {{ form.as_p }}
+      </div>
+      <button type="submit" class="btn-hero" style="width:100%;">
+        <i class="fas fa-check"></i> Registrarse
+      </button>
+    </form>
+    <p class="mt-3 text-center">
+      ¿Ya tienes cuenta? <a href="{% url 'users:login' %}" style="color:var(--color-accent);">Inicia sesión</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .register-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+    padding: 2rem 0;
+  }
+  .register-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--transition);
+  }
+  .register-card:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+  .register-card h2 {
+    font-weight: 300;
+    font-size: 1.8rem;
+    text-align: center;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+  }
+  .register-card h2 i {
+    color: var(--color-accent);
+    margin-right: 0.5rem;
+  }
+  .register-card .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .register-card .form-group input,
+  .register-card .form-group select,
+  .register-card .form-group textarea {
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.8rem;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    width: 100%;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .register-card .form-group input:focus,
+  .register-card .form-group select:focus,
+  .register-card .form-group textarea:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(212,168,55,0.15);
+    outline: none;
+  }
+  body.dark-mode .register-card .form-group input,
+  body.dark-mode .register-card .form-group select,
+  body.dark-mode .register-card .form-group textarea {
+    background: var(--bg-card);
+  }
+  .register-card .form-group label {
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.1rem;
+  }
+  .register-card .btn-hero {
+    width: 100%;
+    justify-content: center;
+    margin-top: 0.5rem;
+  }
+  @media (max-width: 480px) {
+    .register-card {
+      padding: 1.5rem;
+    }
+  }
+</style>
+{% endblock %}
+
+========== ./users/__init__.py ==========
+
+========== ./users/urls.py ==========
+from django.urls import path
+
+from . import views
+
+app_name = "users"
+
+urlpatterns = [
+    path("register/", views.register, name="register"),
+    path("login/", views.CustomLoginView.as_view(), name="login"),
+    path("admin/users/", views.UserListView.as_view(), name="admin_list"),
+    path(
+        "admin/users/<int:pk>/edit/", views.UserUpdateView.as_view(), name="admin_edit"
+    ),
+    path("logout/", views.logout_view, name="logout"),
+    path("profile/", views.ProfileView.as_view(), name="profile"),
+    path("verify/<uuid:token>/", views.verify_email, name="verify_email"),
+]
+
+========== ./users/admin.py ==========
+from django.contrib import admin
+
+from .models import Profile, User
+
+admin.site.register(User)
+admin.site.register(Profile)
+
+========== ./users/models.py ==========
+import uuid
+
+from django.conf import settings
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.utils import timezone
+
+token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+expires_at = models.DateTimeField()
+
+
+class User(AbstractUser):
+    email = models.EmailField(unique=True)
+    ROLE_CHOICES = (
+        ("admin", "Administrador"),
+        ("seller", "Comerciante"),
+        ("customer", "Cliente"),
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="customer")
+
+    # No definas groups ni user_permissions aquí, ya vienen de AbstractUser
+
+    def __str__(self):
+        return self.username
+
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    phone = models.CharField(max_length=20, blank=True)
+    address = models.TextField(blank=True)
+    # Datos de pago para comerciantes
+    payment_email = models.EmailField(
+        blank=True,
+        null=True,
+        help_text="Email para recibir pagos (ej. PayPal, MercadoPago)",
+    )
+    bank_account = models.CharField(
+        max_length=100, blank=True, null=True, help_text="Número de cuenta bancaria"
+    )
+    payment_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="Teléfono para pagos (ej. Bizum, WhatsApp)",
+    )
+
+    def __str__(self):
+        return f"Perfil de {self.user.username}"
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+
+
+def get_expiration_time():
+    return timezone.now() + timedelta(hours=24)
+
+
+class EmailVerification(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="email_verifications",
+    )
+    email = models.EmailField()
+    token = models.UUIDField(
+        default=uuid.uuid4, editable=False, unique=True
+    )  # <-- Agregar
+    expires_at = models.DateTimeField(default=get_expiration_time)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_verified = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Verificación de {self.user.email}"
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+========== ./users/services.py ==========
+# users/services.py
+import requests
+from django.conf import settings
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+
+
+def send_verification_email(user, token):
+    subject = "Verifica tu email en TruckSmarter"
+    message = render_to_string(
+        "emails/verify_email.html",
+        {
+            "user": user,
+            "token": token.token,
+            "site_url": "http://localhost:8000",  # Cambiar en producción
+        },
+    )
+    send_mail(
+        subject,
+        message,
+        settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+        html_message=message,
+    )
+
+
+# users/services.py
+def verify_email_api(email):
+    """
+    Verifica la validez de un email usando una API externa.
+    """
+    api_key = getattr(settings, "EMAIL_VERIFICATION_API_KEY", None)
+    if not api_key:
+        # Si no hay API key, omitimos la verificación (no bloquear)
+        return True
+    url = f"https://api.hunter.io/v2/email-verifier?email={email}&api_key={api_key}"
+    try:
+        response = requests.get(url, timeout=5)
+        data = response.json()
+        if data.get("data", {}).get("status") == "valid":
+            return True
+        return False
+    except Exception:
+        # Si falla la API, permitimos el registro (no bloquear)
+        return True
+
+========== ./users/views.py ==========
+from datetime import timedelta
+
+from django.contrib import messages
+from django.contrib.auth import get_user_model, login, logout
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.views import LoginView, LogoutView
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse, reverse_lazy
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.generic import ListView, UpdateView
+from django_ratelimit.decorators import ratelimit
+
+from .forms import CustomUserCreationForm, ProfileForm, UserAdminForm
+from .models import EmailVerification, Profile, User
+from .services import send_verification_email
+
+User = get_user_model()
+
+
+@ratelimit(key="ip", rate="5/m", method="POST", block=True)
+def register(request):
+    if request.method == "POST":
+        form = CustomUserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+
+            # Crear token de verificación de email
+            token = EmailVerification.objects.create(
+                user=user,
+                email=user.email,
+                expires_at=timezone.now() + timedelta(hours=24),
+            )
+            # Enviar email con el enlace de verificación
+            send_verification_email(user, token)
+
+            messages.success(
+                request,
+                "Registro exitoso. Bienvenido! Revisa tu email para verificar tu cuenta.",
+            )
+            return redirect("vehicles:list")
+        else:
+            messages.error(request, "Por favor corrige los errores del formulario.")
+    else:
+        form = CustomUserCreationForm()
+    return render(request, "users/register.html", {"form": form})
+
+
+class UserListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = User
+    template_name = "users/admin/user_list.html"
+    context_object_name = "users"
+    permission_required = "users.can_manage_users"
+
+
+class UserUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = User
+    form_class = UserAdminForm
+    template_name = "users/admin/user_form.html"
+    permission_required = "users.can_manage_users"
+    success_url = reverse_lazy("users:admin_list")
+
+
+class CustomLoginView(LoginView):
+    template_name = "users/login.html"
+    redirect_authenticated_user = True
+
+    @method_decorator(ratelimit(key="ip", rate="5/m", method="POST", block=True))
+    def dispatch(self, request, *args, **kwargs):
+        if getattr(request, "limited", False):
+            return HttpResponseTooManyRequests(
+                "Demasiados intentos de inicio de sesión. Intenta de nuevo en un minuto."
+            )
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        user = self.request.user
+        if user.is_superuser or user.role == "admin":
+            return reverse("dashboard:home")
+        return reverse("vehicles:list")
+
+
+class CustomLogoutView(LogoutView):
+    next_page = "vehicles:list"
+
+
+def logout_view(request):
+    logout(request)
+    return redirect("vehicles:list")
+
+
+class ProfileView(LoginRequiredMixin, UpdateView):
+    model = User
+    form_class = ProfileForm
+    template_name = "users/profile.html"
+    success_url = reverse_lazy("users:profile")
+
+    def get_object(self):
+        return self.request.user
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Crear perfil si no existe
+        profile, created = Profile.objects.get_or_create(user=self.request.user)
+        context["profile"] = profile
+
+        # Mostrar vehículos si es comerciante o admin
+        if self.request.user.role in ["seller", "admin"]:
+            from vehicles.models import Vehicle
+
+            context["vehicles"] = Vehicle.objects.filter(
+                created_by=self.request.user, is_active=True
+            ).select_related("brand")
+
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, "¡Perfil actualizado correctamente!")
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        messages.error(
+            self.request, "Error al actualizar el perfil. Revisa los campos."
+        )
+        return super().form_invalid(form)
+
+
+class ChangeRoleView(LoginRequiredMixin, UpdateView):
+    model = User
+    fields = []  # no hay campos, solo cambiamos el rol
+    template_name = "users/change_role.html"  # opcional, puedes redirigir
+    success_url = reverse_lazy("users:profile")
+
+    def get_object(self):
+        return self.request.user
+
+    def post(self, request, *args, **kwargs):
+        user = self.get_object()
+        # Solo permitir cambiar si es cliente -> comerciante (o puedes permitir ambos)
+        if user.role == "customer":
+            user.role = "seller"
+            user.save()
+            messages.success(
+                request,
+                "¡Felicidades! Ahora eres comerciante y puedes publicar vehículos.",
+            )
+        else:
+            # Si ya es comerciante, podrías permitir volver a cliente (opcional)
+            # user.role = 'customer'
+            # user.save()
+            # messages.info(request, 'Has vuelto a ser cliente.')
+            messages.info(request, "Ya eres comerciante.")
+        return redirect(self.success_url)
+
+
+# users/views.py
+def send_verification_code(request):
+    # Generar código de 6 dígitos y enviar por email
+    pass
+
+
+def verify_code(request):
+    # Validar código ingresado y marcar email como verificado
+    pass
+
+
+def verify_email(request, token):
+    try:
+        verification = EmailVerification.objects.get(token=token, is_verified=False)
+        if verification.is_expired():
+            messages.error(
+                request,
+                "El enlace ha expirado. Solicita un nuevo enlace de verificación.",
+            )
+            return redirect("users:login")
+        verification.is_verified = True
+        verification.save()
+        # Opcional: marcar el email del usuario como verificado (si agregas un campo `email_verified` en User)
+        messages.success(
+            request, "Email verificado correctamente. ¡Ya puedes iniciar sesión!"
+        )
+    except EmailVerification.DoesNotExist:
+        messages.error(request, "Enlace inválido o ya utilizado.")
+    return redirect("users:login")
+
+========== ./core/tests.py ==========
+from django.contrib.auth import get_user_model
+from django.contrib.auth.mixins import UserPassesTestMixin
+from django.core.exceptions import PermissionDenied
+from django.http import HttpRequest
+from django.test import TestCase
+from django.views.generic import View
+
+from .mixins import (AdminRequiredMixin, OwnerOrAdminRequiredMixin,
+                     SellerRequiredMixin)
+
+User = get_user_model()
+
+
+class MockView(View):
+    """Vista mock para probar mixins."""
+
+    def get_object(self):
+        return None
+
+
+class SellerRequiredMixinTest(TestCase):
+    """Pruebas para SellerRequiredMixin."""
+
+    def setUp(self):
+        self.seller = User.objects.create_user(
+            username="seller",
+            email="seller@test.com",
+            password="testpass123",
+            role="seller",
+        )
+        self.customer = User.objects.create_user(
+            username="customer",
+            email="customer@test.com",
+            password="testpass123",
+            role="customer",
+        )
+        self.admin = User.objects.create_user(
+            username="admin",
+            email="admin@test.com",
+            password="testpass123",
+            role="admin",
+        )
+
+    def test_seller_required_allowed(self):
+        """Verifica que comerciantes y administradores pasen la prueba."""
+        mixin = SellerRequiredMixin()
+        request = HttpRequest()
+
+        request.user = self.seller
+        mixin.request = request
+        self.assertTrue(mixin.test_func())
+
+        request.user = self.admin
+        mixin.request = request
+        self.assertTrue(mixin.test_func())
+
+    def test_seller_required_denied(self):
+        """Verifica que clientes no pasen la prueba."""
+        mixin = SellerRequiredMixin()
+        request = HttpRequest()
+        request.user = self.customer
+        mixin.request = request
+        self.assertFalse(mixin.test_func())
+
+    def test_seller_required_unauthenticated(self):
+        """Verifica que usuarios no autenticados no pasen la prueba."""
+        mixin = SellerRequiredMixin()
+        request = HttpRequest()
+        request.user = None
+        mixin.request = request
+        self.assertFalse(mixin.test_func())
+
+
+class AdminRequiredMixinTest(TestCase):
+    """Pruebas para AdminRequiredMixin."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username="admin",
+            email="admin@test.com",
+            password="testpass123",
+            role="admin",
+        )
+        self.seller = User.objects.create_user(
+            username="seller",
+            email="seller@test.com",
+            password="testpass123",
+            role="seller",
+        )
+
+    def test_admin_required_allowed(self):
+        """Verifica que los administradores pasen la prueba."""
+        mixin = AdminRequiredMixin()
+        request = HttpRequest()
+        request.user = self.admin
+        mixin.request = request
+        self.assertTrue(mixin.test_func())
+
+    def test_admin_required_denied(self):
+        """Verifica que comerciantes NO pasen la prueba."""
+        mixin = AdminRequiredMixin()
+        request = HttpRequest()
+        request.user = self.seller
+        mixin.request = request
+        self.assertFalse(mixin.test_func())
+
+
+class OwnerOrAdminRequiredMixinTest(TestCase):
+    """Pruebas para OwnerOrAdminRequiredMixin."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username="admin",
+            email="admin@test.com",
+            password="testpass123",
+            role="admin",
+        )
+        self.owner = User.objects.create_user(
+            username="owner",
+            email="owner@test.com",
+            password="testpass123",
+            role="seller",
+        )
+        self.other = User.objects.create_user(
+            username="other",
+            email="other@test.com",
+            password="testpass123",
+            role="seller",
+        )
+
+    class MockObject:
+        def __init__(self, created_by):
+            self.created_by = created_by
+
+    def test_owner_allowed(self):
+        """Verifica que el propietario tenga acceso."""
+        obj = self.MockObject(self.owner)
+        mixin = OwnerOrAdminRequiredMixin()
+        request = HttpRequest()
+        request.user = self.owner
+        mixin.request = request
+        mixin.get_object = lambda: obj
+        self.assertTrue(mixin.test_func())
+
+    def test_admin_allowed(self):
+        """Verifica que el administrador tenga acceso."""
+        obj = self.MockObject(self.owner)
+        mixin = OwnerOrAdminRequiredMixin()
+        request = HttpRequest()
+        request.user = self.admin
+        mixin.request = request
+        mixin.get_object = lambda: obj
+        self.assertTrue(mixin.test_func())
+
+    def test_other_denied(self):
+        """Verifica que otro usuario no tenga acceso."""
+        obj = self.MockObject(self.owner)
+        mixin = OwnerOrAdminRequiredMixin()
+        request = HttpRequest()
+        request.user = self.other
+        mixin.request = request
+        mixin.get_object = lambda: obj
+        self.assertFalse(mixin.test_func())
+
+    def test_no_object_denied(self):
+        """Verifica que si no hay objeto, se deniegue el acceso."""
+        mixin = OwnerOrAdminRequiredMixin()
+        request = HttpRequest()
+        request.user = self.owner
+        mixin.request = request
+        mixin.get_object = lambda: None
+        self.assertFalse(mixin.test_func())
+
+========== ./core/apps.py ==========
+from django.apps import AppConfig
+
+
+class CoreConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "core"
+
+========== ./core/mixins.py ==========
+# core/mixins.py
+from django.contrib.auth.mixins import UserPassesTestMixin
+from django.core.exceptions import PermissionDenied
+
+
+class SellerRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        user = self.request.user
+        return (
+            user
+            and user.is_authenticated
+            and (user.is_superuser or user.role in ["seller", "admin"])
+        )
+
+
+# core/mixins.py
+class AdminRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        user = self.request.user
+        return user.is_authenticated and (user.is_superuser or user.role == "admin")
+
+    def handle_no_permission(self):
+        raise PermissionDenied("No tienes permisos para acceder a esta sección.")
+
+
+class OwnerOrAdminRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        obj = self.get_object() if hasattr(self, "get_object") else None
+        user = self.request.user
+
+        if not user or not user.is_authenticated:
+            return False
+
+        if user.is_superuser or user.role == "admin":
+            return True
+
+        if obj and hasattr(obj, "created_by"):
+            return obj.created_by == user
+
+        return False
+
+    def handle_no_permission(self):
+        if self.request.user and self.request.user.is_authenticated:
+            raise PermissionDenied("No tienes permiso para modificar este vehículo.")
+        return super().handle_no_permission()
+
+========== ./core/__init__.py ==========
+
+========== ./core/admin.py ==========
+from django.contrib import admin
+
+# Register your models here.
+
+========== ./core/models.py ==========
+from django.db import models
+
+# Create your models here.
+
+========== ./core/views.py ==========
+from django.shortcuts import render
+
+# Create your views here.
+
+========== ./sales/tests.py ==========
+from decimal import Decimal
+
+from django.contrib.auth import get_user_model
+from django.test import Client, TestCase
+from django.urls import reverse
+
+from vehicles.models import Brand, Vehicle
+
+from .models import Sale
+
+User = get_user_model()
+
+
+class SaleModelTest(TestCase):
+    def setUp(self):
+        self.brand = Brand.objects.create(name="Toyota")
+        self.seller = User.objects.create_user(
+            username="seller",
+            email="seller@test.com",
+            password="testpass123",
+            role="seller",
+        )
+        self.buyer = User.objects.create_user(
+            username="buyer",
+            email="buyer@test.com",
+            password="testpass123",
+            role="customer",
+        )
+        self.vehicle = Vehicle.objects.create(
+            brand=self.brand,
+            model="Corolla",
+            year=2020,
+            price=20000.00,
+            mileage=15000,
+            transmission="automatic",
+            fuel_type="gasoline",
+            status="used",
+            created_by=self.seller,
+            is_active=True,
+            sold=False,
+        )
+
+    def test_offer_creation(self):
+        sale = Sale.objects.create(
+            vehicle=self.vehicle,
+            buyer=self.buyer,
+            seller=self.seller,
+            amount=self.vehicle.price,
+            offered_price=Decimal("15000.00"),
+            status="offer_pending",
+            buyer_phone="123456789",
+            buyer_email="buyer@test.com",
+        )
+        self.assertEqual(sale.offered_price, Decimal("15000.00"))
+        self.assertEqual(sale.status, "offer_pending")
+
+
+class MakeOfferViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.brand = Brand.objects.create(name="Toyota")
+        self.seller = User.objects.create_user(
+            username="seller",
+            email="seller@test.com",
+            password="testpass123",
+            role="seller",
+        )
+        self.buyer = User.objects.create_user(
+            username="buyer",
+            email="buyer@test.com",
+            password="testpass123",
+            role="customer",
+        )
+        self.vehicle = Vehicle.objects.create(
+            brand=self.brand,
+            model="Corolla",
+            year=2020,
+            price=20000.00,
+            mileage=15000,
+            transmission="automatic",
+            fuel_type="gasoline",
+            status="used",
+            created_by=self.seller,
+            is_active=True,
+            sold=False,
+        )
+
+    def test_make_offer_success(self):
+        self.client.force_login(self.buyer)
+        response = self.client.post(
+            reverse("sales:make_offer", args=[self.vehicle.id]),
+            {"offered_price": "15000"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            Sale.objects.filter(vehicle=self.vehicle, status="offer_pending").exists()
+        )
+
+    def test_make_offer_own_vehicle(self):
+        self.client.force_login(self.seller)
+        response = self.client.post(
+            reverse("sales:make_offer", args=[self.vehicle.id]),
+            {"offered_price": "15000"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            Sale.objects.filter(vehicle=self.vehicle, status="offer_pending").exists()
+        )
+
+    def test_make_offer_unauthenticated(self):
+        response = self.client.post(
+            reverse("sales:make_offer", args=[self.vehicle.id]),
+            {"offered_price": "15000"},
+        )
+        self.assertRedirects(
+            response,
+            f'/users/login/?next={reverse("sales:make_offer", args=[self.vehicle.id])}',
+        )
+
+    def test_make_offer_price_too_high(self):
+        self.client.force_login(self.buyer)
+        response = self.client.post(
+            reverse("sales:make_offer", args=[self.vehicle.id]),
+            {"offered_price": "25000"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            Sale.objects.filter(vehicle=self.vehicle, status="offer_pending").exists()
+        )
+        # Verificar mensaje de error (opcional)
+
+    def test_make_offer_duplicate_pending(self):
+        Sale.objects.create(
+            vehicle=self.vehicle,
+            buyer=self.buyer,
+            seller=self.seller,
+            amount=self.vehicle.price,
+            offered_price=Decimal("15000"),
+            status="offer_pending",
+        )
+        self.client.force_login(self.buyer)
+        response = self.client.post(
+            reverse("sales:make_offer", args=[self.vehicle.id]),
+            {"offered_price": "14000"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            Sale.objects.filter(vehicle=self.vehicle, status="offer_pending").count(), 1
+        )
+
+
+class OfferAcceptRejectTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.brand = Brand.objects.create(name="Toyota")
+        self.admin = User.objects.create_superuser(
+            username="admin", email="admin@test.com", password="adminpass"
+        )
+        self.seller = User.objects.create_user(
+            username="seller",
+            email="seller@test.com",
+            password="testpass123",
+            role="seller",
+        )
+        self.buyer = User.objects.create_user(
+            username="buyer",
+            email="buyer@test.com",
+            password="testpass123",
+            role="customer",
+        )
+        self.vehicle = Vehicle.objects.create(
+            brand=self.brand,
+            model="Corolla",
+            year=2020,
+            price=20000.00,
+            mileage=15000,
+            transmission="automatic",
+            fuel_type="gasoline",
+            status="used",
+            created_by=self.seller,
+            is_active=True,
+            sold=False,
+        )
+        self.sale = Sale.objects.create(
+            vehicle=self.vehicle,
+            buyer=self.buyer,
+            seller=self.seller,
+            amount=self.vehicle.price,
+            offered_price=Decimal("15000"),
+            status="offer_pending",
+        )
+
+    def test_accept_offer_admin(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse("sales:accept_offer", args=[self.sale.id]))
+        self.assertEqual(response.status_code, 302)
+        self.sale.refresh_from_db()
+        self.assertEqual(self.sale.status, "offer_accepted")
+        self.vehicle.refresh_from_db()
+        self.assertTrue(self.vehicle.sold)
+        self.assertFalse(self.vehicle.is_active)
+
+    def test_accept_offer_non_admin(self):
+        self.client.force_login(self.seller)
+        response = self.client.post(reverse("sales:accept_offer", args=[self.sale.id]))
+        self.assertEqual(
+            response.status_code, 302
+        )  # Redirige a login? o 403? Depende de user_passes_test.
+
+    def test_reject_offer_admin(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse("sales:reject_offer", args=[self.sale.id]))
+        self.assertEqual(response.status_code, 302)
+        self.sale.refresh_from_db()
+        self.assertEqual(self.sale.status, "offer_rejected")
+        self.vehicle.refresh_from_db()
+        self.assertFalse(self.vehicle.sold)
+        self.assertTrue(self.vehicle.is_active)
+
+========== ./sales/apps.py ==========
+from django.apps import AppConfig
+
+
+class SalesConfig(AppConfig):
+    name = "sales"
+
+========== ./sales/templates/sales/history.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Historial de compras - TruckSmarter{% endblock %}
+
+{% block content %}
+<div class="container history-container">
+  <h2><i class="fas fa-clock"></i> Historial de Compras</h2>
+
+  {% if sales %}
+    <div class="history-grid">
+      {% for sale in sales %}
+        <div class="history-card">
+          <div class="history-header">
+            <h5>{{ sale.vehicle.brand.name }} {{ sale.vehicle.model }}</h5>
+            <span class="badge-status {% if sale.status == 'completed' %}new{% else %}used{% endif %}">
+              {{ sale.get_status_display }}
+            </span>
+          </div>
+          <div class="history-body">
+            <p><i class="fas fa-tag"></i> <strong>Precio:</strong> ${{ sale.amount }}</p>
+            <p><i class="fas fa-user"></i> <strong>Vendedor:</strong> {{ sale.seller.get_full_name|default:sale.seller.username }}</p>
+            <p><i class="fas fa-calendar-alt"></i> <strong>Fecha:</strong> {{ sale.created_at|date:"d/m/Y H:i" }}</p>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-muted text-center">No has realizado compras aún.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .history-container {
+    padding: 2rem 0;
+  }
+  .history-container h2 {
+    font-weight: 300;
+    font-size: 2rem;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+  }
+  .history-container h2 i {
+    color: var(--color-accent);
+    margin-right: 0.5rem;
+  }
+
+  .history-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .history-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition), box-shadow var(--transition);
+  }
+  .history-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+  }
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 1.2rem;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(255,255,255,0.02);
+  }
+  .history-header h5 {
+    font-weight: 400;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    margin: 0;
+  }
+  .history-header .badge-status {
+    font-size: 0.6rem;
+    padding: 0.2rem 0.8rem;
+    border-radius: 40px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    background: var(--color-accent);
+    color: #0a0a12;
+  }
+  .history-header .badge-status.new {
+    background: #0b7e4b;
+    color: #fff;
+  }
+  .history-header .badge-status.used {
+    background: #6b7280;
+    color: #fff;
+  }
+  body.dark-mode .history-header .badge-status.new {
+    background: #0b7e4b;
+  }
+  body.dark-mode .history-header .badge-status.used {
+    background: #6b7280;
+  }
+
+  .history-body {
+    padding: 1rem 1.2rem 1.2rem;
+  }
+  .history-body p {
+    margin: 0.2rem 0;
+    font-weight: 300;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+  .history-body p i {
+    color: var(--color-accent);
+    width: 1.2rem;
+    text-align: center;
+    margin-right: 0.2rem;
+  }
+  .history-body p strong {
+    font-weight: 400;
+    color: var(--text-primary);
+  }
+
+  @media (max-width: 480px) {
+    .history-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+========== ./sales/__init__.py ==========
+
+========== ./sales/urls.py ==========
+from django.urls import path
+
+from . import views
+
+app_name = "sales"
+
+urlpatterns = [
+    path("offer/<int:vehicle_id>/", views.make_offer, name="make_offer"),
+    path("reserve/<int:vehicle_id>/", views.reserve_vehicle, name="reserve"),
+    path(
+        "cancel-reservation/<int:vehicle_id>/",
+        views.cancel_reservation,
+        name="cancel_reservation",
+    ),
+    path("history/", views.purchase_history, name="history"),
+    path(
+        "accept-offer/<int:sale_id>/", views.accept_offer, name="accept_offer"
+    ),  # <-- Agregar
+    path("reject-offer/<int:sale_id>/", views.reject_offer, name="reject_offer"),
+]
+
+========== ./sales/admin.py ==========
+from django.contrib import admin
+
+# Register your models here.
+
+========== ./sales/models.py ==========
+from django.conf import settings
+from django.db import models
+
+from vehicles.models import Vehicle
+
+
+class Sale(models.Model):
+    STATUS_CHOICES = (
+        ("offer_pending", "Oferta pendiente"),
+        ("offer_accepted", "Oferta aceptada"),
+        ("offer_rejected", "Oferta rechazada"),
+        ("completed", "Completada"),
+        ("cancelled", "Cancelada"),
+    )
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name="sales")
+    buyer = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="purchases"
+    )
+    seller = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sales"
+    )
+    amount = models.DecimalField(
+        max_digits=12, decimal_places=2
+    )  # Precio original del vehículo
+    offered_price = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )  # Precio ofertado
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="offer_pending"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    buyer_phone = models.CharField(max_length=20, blank=True)
+    buyer_email = models.EmailField(blank=True)
+    notes = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"Venta de {self.vehicle} - {self.buyer.username}"
+
+    class Meta:
+        ordering = ["-created_at"]
+
+========== ./sales/services.py ==========
+# sales/services.py
+import logging
+
+from django.conf import settings
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+
+logger = logging.getLogger(__name__)
+
+
+def send_offer_notifications(vehicle, buyer, admin_user, sale):
+    # Notificación al comprador
+    send_email(
+        subject=f"Oferta enviada: {vehicle.brand.name} {vehicle.model}",
+        template_name="emails/offer_confirmation.html",
+        context={
+            "vehicle": {
+                "brand": vehicle.brand.name,
+                "model": vehicle.model,
+                "year": vehicle.year,
+            },
+            "buyer": {
+                "full_name": buyer.get_full_name() or buyer.username,
+                "email": buyer.email,
+            },
+            "offered_price": sale.offered_price,
+            "site_name": "TruckSmarter",
+        },
+        to=[buyer.email],
+    )
+
+    # Notificación al admin
+    if admin_user:
+        send_email(
+            subject=f"Nueva oferta: {vehicle.brand.name} {vehicle.model}",
+            template_name="emails/admin_offer_notification.html",
+            context={
+                "vehicle": {
+                    "brand": vehicle.brand.name,
+                    "model": vehicle.model,
+                    "year": vehicle.year,
+                },
+                "buyer": {
+                    "full_name": buyer.get_full_name() or buyer.username,
+                    "email": buyer.email,
+                },
+                "offered_price": sale.offered_price,
+                "sale_id": sale.id,
+                "site_url": "https://tudominio.com",
+            },
+            to=[admin_user.email],
+        )
+
+
+def send_offer_accepted_notification(sale):
+    send_email(
+        subject=f"Oferta aceptada: {sale.vehicle.brand.name} {sale.vehicle.model}",
+        template_name="emails/offer_accepted.html",
+        context={
+            "vehicle": {"brand": sale.vehicle.brand.name, "model": sale.vehicle.model},
+            "offered_price": sale.offered_price,
+            "site_name": "TruckSmarter",
+        },
+        to=[sale.buyer.email],
+    )
+
+
+def send_offer_rejected_notification(sale):
+    send_email(
+        subject=f"Oferta rechazada: {sale.vehicle.brand.name} {sale.vehicle.model}",
+        template_name="emails/offer_rejected.html",
+        context={
+            "vehicle": {"brand": sale.vehicle.brand.name, "model": sale.vehicle.model},
+            "offered_price": sale.offered_price,
+            "site_name": "TruckSmarter",
+        },
+        to=[sale.buyer.email],
+    )
+
+
+def send_reservation_notifications(vehicle, buyer, admin_user, sale):
+    """
+    Envía email de confirmación al comprador y notificación al administrador.
+    """
+    # Datos del vehículo
+    vehicle_details = {
+        "brand": vehicle.brand.name,
+        "model": vehicle.model,
+        "year": vehicle.year,
+        "price": vehicle.price,
+        "description": vehicle.description[:200],
+    }
+
+    # Datos del comprador
+    buyer_details = {
+        "full_name": buyer.get_full_name() or buyer.username,
+        "email": buyer.email,
+        "phone": (
+            buyer.profile.phone if hasattr(buyer, "profile") else "No especificado"
+        ),
+        "address": (
+            buyer.profile.address if hasattr(buyer, "profile") else "No especificada"
+        ),
+    }
+
+    context = {
+        "vehicle": vehicle_details,
+        "buyer": buyer_details,
+        "sale_id": sale.id,
+        "sale_amount": sale.amount,
+        "sale_date": sale.created_at,
+        "site_name": "TruckSmarter",
+        "site_url": "https://tudominio.com",  # Cambiar por tu dominio
+    }
+    # 1. Email para el administrador (notificación de nueva reserva)
+    if admin_user:
+        send_email(
+            subject=f'Nueva reserva: {vehicle_details["brand"]} {vehicle_details["model"]}',
+            template_name="emails/admin_reservation_notification.html",
+            context=context,
+            to=[admin_user.email],
+            from_email=settings.DEFAULT_FROM_EMAIL,
+        )
+    # 2. Email para el comprador (confirmación de reserva)
+    send_email(
+        subject=f'Reserva confirmada: {vehicle_details["brand"]} {vehicle_details["model"]}',
+        template_name="emails/reservation_confirmation.html",
+        context=context,
+        to=[buyer.email],
+        from_email=settings.DEFAULT_FROM_EMAIL,
+    )
+
+
+def send_email(subject, template_name, context, to, from_email=None):
+    """
+    Función auxiliar para enviar emails con plantillas HTML y texto plano.
+    """
+    try:
+        # Renderizar HTML
+        html_message = render_to_string(template_name, context)
+        # Crear versión texto plano (para clientes que no soportan HTML)
+        plain_message = strip_tags(html_message)
+
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=from_email or settings.DEFAULT_FROM_EMAIL,
+            recipient_list=to,
+            html_message=html_message,
+            fail_silently=False,
+        )
+        logger.info(f"Email enviado a {', '.join(to)}: {subject}")
+    except Exception as e:
+        logger.error(f"Error al enviar email a {', '.join(to)}: {str(e)}")
+        # No lanzamos excepción para no interrumpir la compra
+
+
+def send_cancellation_notification(vehicle, user):
+    context = {
+        "vehicle": {
+            "brand": vehicle.brand.name,
+            "model": vehicle.model,
+            "year": vehicle.year,
+        },
+        "user": {
+            "full_name": user.get_full_name() or user.username,
+            "email": user.email,
+        },
+        "site_name": "TruckSmarter",
+        "site_url": "https://tudominio.com",
+    }
+    send_email(
+        subject=f"Reserva cancelada: {vehicle.brand.name} {vehicle.model}",
+        template_name="emails/reservation_cancelled.html",
+        context=context,
+        to=[user.email],
+        from_email=settings.DEFAULT_FROM_EMAIL,
+    )
+
+
+def send_admin_cancellation_notification(vehicle, user, admin_user):
+    context = {
+        "vehicle": {
+            "brand": vehicle.brand.name,
+            "model": vehicle.model,
+            "year": vehicle.year,
+        },
+        "user": {
+            "full_name": user.get_full_name() or user.username,
+            "email": user.email,
+        },
+        "site_name": "TruckSmarter",
+        "site_url": "https://tudominio.com",
+    }
+    send_email(
+        subject=f"Reserva cancelada por {user.get_full_name() or user.username}: {vehicle.brand.name} {vehicle.model}",
+        template_name="emails/admin_reservation_cancelled.html",
+        context=context,
+        to=[admin_user.email],
+        from_email=settings.DEFAULT_FROM_EMAIL,
+    )
+
+========== ./sales/views.py ==========
+import logging
+# sales/views.py
+from decimal import Decimal  # <-- Agregar esta línea
+
+from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db import transaction
+from django.db.models import F
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+
+from core.mixins import AdminRequiredMixin
+from vehicles.models import Vehicle
+
+from .models import Sale
+from .services import (send_admin_cancellation_notification,
+                       send_cancellation_notification,
+                       send_offer_accepted_notification,
+                       send_offer_notifications,
+                       send_offer_rejected_notification,
+                       send_reservation_notifications)
+
+User = get_user_model()
+logger = logging.getLogger(__name__)
+
+
+def get_admin_user():
+    """Obtiene el primer superusuario o usuario con role='admin'."""
+    admin = User.objects.filter(is_superuser=True).first()
+    if not admin:
+        admin = User.objects.filter(role="admin").first()
+    return admin
+
+
+@login_required
+@transaction.atomic
+def reserve_vehicle(request, vehicle_id):
+    vehicle = get_object_or_404(
+        Vehicle.objects.select_for_update(),
+        id=vehicle_id,
+        is_active=True,
+        sold=False,
+        reserved=False,
+    )
+
+    if vehicle.created_by == request.user:
+        messages.error(request, "No puedes reservar tu propio vehículo.")
+        return redirect("vehicles:detail", pk=vehicle_id)
+
+    # Crear la venta
+    sale = Sale.objects.create(
+        vehicle=vehicle,
+        buyer=request.user,
+        seller=vehicle.created_by,
+        amount=vehicle.price,
+        status="reserved",
+        buyer_phone=(
+            request.user.profile.phone if hasattr(request.user, "profile") else ""
+        ),
+        buyer_email=request.user.email,
+    )
+
+    # Marcar vehículo como reservado
+    vehicle.reserved = True
+    vehicle.reserved_by = request.user
+    vehicle.save()
+
+    # Obtener administrador
+    admin_user = get_admin_user()
+
+    # Enviar notificaciones
+    try:
+        send_reservation_notifications(
+            vehicle=vehicle, buyer=request.user, admin_user=admin_user, sale=sale
+        )
+    except Exception as e:
+        logger.error(f"Error al enviar email de reserva: {e}")
+        # No interrumpir el flujo
+
+    messages.success(
+        request,
+        f"¡Vehículo reservado! {vehicle.brand.name} {vehicle.model} ha sido reservado.",
+    )
+    return redirect("vehicles:detail", pk=vehicle_id)
+
+
+@login_required
+@transaction.atomic
+def cancel_reservation(request, vehicle_id):
+    vehicle = get_object_or_404(
+        Vehicle.objects.select_for_update(),
+        id=vehicle_id,
+        reserved=True,
+        reserved_by=request.user,
+    )
+
+    # Obtener la venta asociada
+    sale = Sale.objects.filter(
+        vehicle=vehicle, buyer=request.user, status="reserved"
+    ).first()
+    if sale:
+        sale.status = "cancelled"
+        sale.save()
+
+    # Liberar vehículo
+    vehicle.reserved = False
+    vehicle.reserved_by = None
+    vehicle.save()
+
+    # Obtener administrador
+    admin_user = get_admin_user()
+
+    # Enviar email de cancelación al administrador
+    if admin_user:
+        try:
+            send_admin_cancellation_notification(vehicle, request.user, admin_user)
+        except Exception as e:
+            logger.error(f"Error al enviar email de cancelación al admin: {e}")
+    # Enviar email de cancelación al comprador
+    try:
+        send_cancellation_notification(vehicle, request.user)
+    except Exception as e:
+        logger.error(f"Error al enviar email de cancelación al comprador: {e}")
+
+    messages.info(
+        request, f"Has cancelado la reserva de {vehicle.brand.name} {vehicle.model}."
+    )
+    return redirect("vehicles:detail", pk=vehicle_id)
+
+
+@login_required
+def purchase_history(request):
+    """Ver historial de compras del usuario."""
+    sales = Sale.objects.filter(buyer=request.user).select_related("vehicle", "seller")
+    return render(request, "sales/history.html", {"sales": sales})
+
+
+@login_required
+@transaction.atomic
+def make_offer(request, vehicle_id):
+    vehicle = get_object_or_404(
+        Vehicle.objects.select_for_update(),
+        id=vehicle_id,
+        is_active=True,
+        sold=False,
+    )
+
+    if vehicle.created_by == request.user:
+        messages.error(request, "No puedes hacer una oferta en tu propio vehículo.")
+        return redirect("vehicles:detail", pk=vehicle_id)
+
+    # Verificar si ya hay una oferta pendiente (cualquier usuario)
+    pending_offer = Sale.objects.filter(vehicle=vehicle, status="offer_pending").first()
+    if pending_offer:
+        messages.error(request, "Ya hay una oferta pendiente para este vehículo.")
+        return redirect("vehicles:detail", pk=vehicle_id)
+
+    # Obtener la última oferta del usuario para este vehículo (cualquier estado)
+    last_offer = (
+        Sale.objects.filter(vehicle=vehicle, buyer=request.user)
+        .order_by("-created_at")
+        .first()
+    )
+
+    if request.method == "POST":
+        offered_price = request.POST.get("offered_price")
+        if not offered_price:
+            messages.error(request, "Debes ingresar un precio.")
+            return redirect("vehicles:detail", pk=vehicle_id)
+
+        try:
+            offered_price = Decimal(offered_price)
+            if offered_price <= 0:
+                raise ValueError
+            if offered_price >= vehicle.price:
+                messages.error(
+                    request, "El precio ofertado debe ser menor al precio publicado."
+                )
+                return redirect("vehicles:detail", pk=vehicle_id)
+
+            # Validar que no sea mayor que la última oferta del usuario (si existe)
+            if last_offer and offered_price > last_offer.offered_price:
+                messages.error(
+                    request,
+                    f"Tu nueva oferta no puede ser mayor que tu última oferta de ${last_offer.offered_price}. Debes ofertar un precio menor.",
+                )
+                return redirect("vehicles:detail", pk=vehicle_id)
+
+        except (ValueError, TypeError):
+            messages.error(request, "Ingresa un precio válido.")
+            return redirect("vehicles:detail", pk=vehicle_id)
+
+        # Crear la oferta
+        sale = Sale.objects.create(
+            vehicle=vehicle,
+            buyer=request.user,
+            seller=vehicle.created_by,
+            amount=vehicle.price,
+            offered_price=offered_price,
+            status="offer_pending",
+            buyer_phone=(
+                request.user.profile.phone if hasattr(request.user, "profile") else ""
+            ),
+            buyer_email=request.user.email,
+        )
+
+        # Obtener administrador
+        admin_user = get_admin_user()
+
+        # Enviar notificaciones
+        try:
+            send_offer_notifications(vehicle, request.user, admin_user, sale)
+        except Exception as e:
+            logger.error(f"Error al enviar email de oferta: {e}")
+
+        messages.success(
+            request,
+            f"¡Oferta enviada! {vehicle.brand.name} {vehicle.model} - Tu oferta de ${offered_price} está en revisión.",
+        )
+        return redirect("vehicles:detail", pk=vehicle_id)
+
+    return redirect("vehicles:detail", pk=vehicle_id)
+
+
+def is_admin(user):
+    return user.is_authenticated and (user.is_superuser or user.role == "admin")
+
+
+@login_required
+@user_passes_test(is_admin)
+@transaction.atomic
+def accept_offer(request, sale_id):
+    sale = get_object_or_404(
+        Sale.objects.select_for_update(), id=sale_id, status="offer_pending"
+    )
+    sale.status = "offer_accepted"
+    sale.save()
+
+    vehicle = sale.vehicle
+    vehicle.sold = True
+    vehicle.is_active = False
+    vehicle.reserved = False
+    vehicle.reserved_by = None
+    vehicle.save()
+
+    try:
+        send_offer_accepted_notification(sale)
+    except Exception as e:
+        logger.error(f"Error al enviar email de aceptación: {e}")
+
+    messages.success(
+        request, f"Oferta aceptada para {vehicle.brand.name} {vehicle.model}."
+    )
+    return redirect("dashboard:offer_list")
+
+
+@login_required
+@user_passes_test(is_admin)
+@transaction.atomic
+def reject_offer(request, sale_id):
+    sale = get_object_or_404(
+        Sale.objects.select_for_update(), id=sale_id, status="offer_pending"
+    )
+    sale.status = "offer_rejected"
+    sale.save()
+
+    vehicle = sale.vehicle
+    vehicle.reserved = False
+    vehicle.reserved_by = None
+    vehicle.save()
+
+    try:
+        send_offer_rejected_notification(sale)
+    except Exception as e:
+        logger.error(f"Error al enviar email de rechazo: {e}")
+
+    messages.info(
+        request, f"Oferta rechazada para {vehicle.brand.name} {vehicle.model}."
+    )
+    return redirect("dashboard:offer_list")
+
+========== ./dashboard/tests.py ==========
+from django.contrib.auth import get_user_model
+from django.test import Client, TestCase
+from django.urls import reverse
+
+from sales.models import Sale
+from vehicles.models import Brand, Vehicle
+
+User = get_user_model()
+
+
+class DashboardTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.admin = User.objects.create_superuser(
+            username="admin", email="admin@test.com", password="adminpass", role="admin"
+        )
+        self.user = User.objects.create_user(
+            username="user", email="user@test.com", password="userpass", role="customer"
+        )
+        self.brand = Brand.objects.create(name="Toyota")
+        self.vehicle = Vehicle.objects.create(
+            brand=self.brand,
+            model="Corolla",
+            year=2020,
+            price=20000,
+            mileage=15000,
+            transmission="automatic",
+            fuel_type="gasoline",
+            status="used",
+            created_by=self.admin,
+            is_active=True,
+            sold=False,
+        )
+        self.sale = Sale.objects.create(
+            vehicle=self.vehicle,
+            buyer=self.user,
+            seller=self.admin,
+            amount=20000,
+            offered_price=15000,
+            status="offer_pending",
+        )
+
+    def test_dashboard_home_admin(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("dashboard:home"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_dashboard_home_non_admin(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("dashboard:home"))
+        self.assertEqual(response.status_code, 403)
+
+    def test_offer_list_admin(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("dashboard:offer_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Toyota Corolla")
+
+========== ./dashboard/forms.py ==========
+# vehicles/forms.py
+from .models import Brand
+
+
+class BrandForm(forms.ModelForm):
+    class Meta:
+        model = Brand
+        fields = ["name", "logo"]
+
+
+class DashboardHomeView(AdminRequiredMixin, LoginRequiredMixin, TemplateView):
+    template_name = "dashboard/home.html"
+
+========== ./dashboard/apps.py ==========
+from django.apps import AppConfig
+
+
+class DashboardConfig(AppConfig):
+    name = "dashboard"
+
+========== ./dashboard/templates/dashboard/brand_form.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if object %}Editar{% else %}Crear{% endif %} Marca{% endblock %}
+
+{% block content %}
+<div class="container form-container">
+  <div class="form-card">
+    <h2><i class="fas fa-{% if object %}edit{% else %}plus-circle{% endif %}"></i>
+      {% if object %}Editar{% else %}Crear{% endif %} marca
+    </h2>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="form-group">
+        {{ form.as_p }}
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-hero">
+          <i class="fas fa-save"></i> Guardar
+        </button>
+        <a href="{% url 'dashboard:brand_list' %}" class="btn-outline-gold">
+          <i class="fas fa-times"></i> Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+========== ./dashboard/templates/dashboard/brand_confirm_delete.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Eliminar marca - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container confirm-container">
+  <div class="confirm-card">
+    <h2><i class="fas fa-exclamation-triangle"></i> Eliminar marca</h2>
+    <p>¿Estás seguro de que quieres eliminar la marca <strong>{{ object.name }}</strong>?</p>
+    <p class="text-muted">Esto también eliminará todos los vehículos asociados a esta marca.</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="confirm-actions">
+        <button type="submit" class="btn-hero" style="background:#d43737; border-color:#d43737;">
+          <i class="fas fa-trash"></i> Eliminar
+        </button>
+        <a href="{% url 'dashboard:brand_list' %}" class="btn-outline-gold">
+          <i class="fas fa-times"></i> Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+========== ./dashboard/templates/dashboard/user_form.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if object %}Editar{% else %}Crear{% endif %} Usuario{% endblock %}
+
+{% block content %}
+<div class="container form-container">
+  <div class="form-card">
+    <h2><i class="fas fa-{% if object %}edit{% else %}user-plus{% endif %}"></i>
+      {% if object %}Editar{% else %}Crear{% endif %} usuario
+    </h2>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        {{ form.as_p }}
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-hero">
+          <i class="fas fa-save"></i> Guardar
+        </button>
+        <a href="{% url 'dashboard:user_list' %}" class="btn-outline-gold">
+          <i class="fas fa-times"></i> Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Reutiliza los estilos de form.html */
+  .form-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 2rem 0;
+  }
+  .form-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    max-width: 700px;
+    width: 100%;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--transition);
+  }
+  .form-card:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+  .form-card h2 {
+    font-weight: 300;
+    font-size: 1.8rem;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+  }
+  .form-card h2 i {
+    color: var(--color-accent);
+    margin-right: 0.5rem;
+  }
+  .form-card .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  .form-card .form-group input,
+  .form-card .form-group select,
+  .form-card .form-group textarea {
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.8rem;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    width: 100%;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .form-card .form-group input:focus,
+  .form-card .form-group select:focus,
+  .form-card .form-group textarea:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(212,168,55,0.15);
+    outline: none;
+  }
+  body.dark-mode .form-card .form-group input,
+  body.dark-mode .form-card .form-group select,
+  body.dark-mode .form-card .form-group textarea {
+    background: var(--bg-card);
+  }
+  .form-card .form-group label {
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.1rem;
+  }
+  .form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .form-actions .btn-hero {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+  .form-actions .btn-outline-gold {
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  @media (max-width: 480px) {
+    .form-card {
+      padding: 1.5rem;
+    }
+    .form-actions {
+      flex-direction: column;
+    }
+    .form-actions .btn-hero,
+    .form-actions .btn-outline-gold {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %}
+
+========== ./dashboard/templates/dashboard/dashboard.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Panel de Administración{% endblock %}
+
+{% block content %}
+<div class="dashboard-home">
+  <h1><i class="fas fa-tachometer-alt"></i> Panel de Administración</h1>
+  <div class="dashboard-grid">
+    <a href="{% url 'dashboard:user_list' %}" class="dashboard-card">
+      <i class="fas fa-users"></i>
+      <h5>Usuarios</h5>
+      <p>Gestionar usuarios, roles y permisos</p>
+    </a>
+    <a href="{% url 'dashboard:brand_list' %}" class="dashboard-card">
+      <i class="fas fa-tag"></i>
+      <h5>Marcas</h5>
+      <p>Crear o editar marcas de vehículos</p>
+    </a>
+    <a href="{% url 'vehicles:list' %}" class="dashboard-card">
+      <i class="fas fa-car"></i>
+      <h5>Vehículos</h5>
+      <p>Ver, editar o eliminar vehículos</p>
+    </a>
+    <a href="{% url 'admin:index' %}" class="dashboard-card" target="_blank">
+      <i class="fas fa-cog"></i>
+      <h5>Admin de Django</h5>
+      <p>Acceso al panel tradicional (opcional)</p>
+    </a>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Ajuste para que el contenido no quede tapado por la navbar */
+  .dashboard-home {
+    padding: 12vh 1.5rem 2rem;  /* 12% de la altura de la ventana arriba */
+    min-height: 100vh;          /* ocupa al menos toda la pantalla */
+    max-width: 80rem;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+
+  .dashboard-home h1 {
+    font-weight: 300;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    margin-bottom: 2rem;
+  }
+  .dashboard-home h1 i {
+    color: var(--color-accent);
+    margin-right: 0.5rem;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+    gap: 1.5rem;
+  }
+
+  .dashboard-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    text-align: center;
+    transition: transform var(--transition), box-shadow var(--transition);
+    box-shadow: var(--shadow-sm);
+    text-decoration: none;
+    color: var(--text-primary);
+  }
+  .dashboard-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-card-hover);
+    border-color: var(--color-accent);
+  }
+  .dashboard-card i {
+    font-size: 2.5rem;
+    color: var(--color-accent);
+    margin-bottom: 0.5rem;
+  }
+  .dashboard-card h5 {
+    font-weight: 400;
+    margin-bottom: 0.3rem;
+  }
+  .dashboard-card p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  /* Ajustes responsive */
+  @media (max-width: 640px) {
+    .dashboard-home {
+      padding-top: 10vh; /* un poco menos en móviles */
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+    .dashboard-grid {
+      grid-template-columns: 1fr 1fr; /* dos columnas en móvil */
+    }
+  }
+  @media (max-width: 400px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr; /* una columna en pantallas muy pequeñas */
+    }
+  }
+</style>
+{% endblock %}
+
+========== ./dashboard/templates/dashboard/user_confirm_delete.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Eliminar usuario - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container confirm-container">
+  <div class="confirm-card">
+    <h2><i class="fas fa-exclamation-triangle"></i> Eliminar usuario</h2>
+    <p>¿Estás seguro de que quieres eliminar al usuario <strong>{{ object.username }}</strong>?</p>
+    <p class="text-muted">Esta acción no se puede deshacer.</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="confirm-actions">
+        <button type="submit" class="btn-hero" style="background:#d43737; border-color:#d43737;">
+          <i class="fas fa-trash"></i> Eliminar
+        </button>
+        <a href="{% url 'dashboard:user_list' %}" class="btn-outline-gold">
+          <i class="fas fa-times"></i> Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .confirm-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+  }
+  .confirm-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: var(--shadow-card);
+    text-align: center;
+  }
+  .confirm-card h2 {
+    font-weight: 300;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+  }
+  .confirm-card h2 i {
+    color: #d43737;
+    margin-right: 0.5rem;
+  }
+  .confirm-card p {
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+  .confirm-card .text-muted {
+    font-size: 0.85rem;
+  }
+  .confirm-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .confirm-actions .btn-hero {
+    background: #d43737;
+    border-color: #d43737;
+  }
+  .confirm-actions .btn-hero:hover {
+    background: #b32a2a;
+    border-color: #b32a2a;
+  }
+  .confirm-actions .btn-hero,
+  .confirm-actions .btn-outline-gold {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+</style>
+{% endblock %}
+
+========== ./dashboard/templates/dashboard/user_list.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Usuarios - Panel Admin{% endblock %}
+
+{% block content %}
+<div class="container dashboard-list">
+  <div class="list-header">
+    <h2><i class="fas fa-users"></i> Usuarios</h2>
+    <a href="{% url 'dashboard:user_create' %}" class="btn-hero btn-sm">
+      <i class="fas fa-plus"></i> Nuevo usuario
+    </a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Email</th>
+          <th>Rol</th>
+          <th>Activo</th>
+          <th>Staff</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td><strong>{{ user.username }}</strong></td>
+          <td>{{ user.email }}</td>
+          <td><span class="role-badge role-{{ user.role }}">{{ user.get_role_display }}</span></td>
+          <td>{{ user.is_active|yesno:"✅,❌" }}</td>
+          <td>{{ user.is_staff|yesno:"✅,❌" }}</td>
+          <td>
+            <a href="{% url 'dashboard:user_update' user.pk %}" class="btn-icon" title="Editar">
+              <i class="fas fa-pencil-alt"></i>
+            </a>
+            <a href="{% url 'dashboard:user_delete' user.pk %}" class="btn-icon danger" title="Eliminar">
+              <i class="fas fa-trash"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted">No hay usuarios registrados.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .list-header h2 {
+    font-weight: 300;
+    font-size: 1.8rem;
+    margin: 0;
+  }
+  .list-header h2 i {
+    color: var(--color-accent);
+    margin-right: 0.5rem;
+  }
+  .btn-sm {
+    padding: 0.3rem 1.2rem;
+    font-size: 0.8rem;
+  }
+  .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-card);
+    backdrop-filter: blur(8px);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .admin-table thead {
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border-color);
+  }
+  .admin-table th {
+    padding: 0.8rem 1rem;
+    text-align: left;
+    font-weight: 400;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .admin-table td {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+  }
+  .admin-table tr:hover {
+    background: var(--bg-card-hover);
+  }
+  .admin-table .role-badge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.6rem;
+  }
+  .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all var(--transition);
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .btn-icon:hover {
+    background: var(--bg-card-hover);
+    color: var(--color-accent);
+  }
+  .btn-icon.danger:hover {
+    color: #d43737;
+    background: rgba(212,55,55,0.1);
+  }
+  @media (max-width: 640px) {
+    .admin-table {
+      font-size: 0.8rem;
+    }
+    .admin-table th, .admin-table td {
+      padding: 0.4rem 0.6rem;
+    }
+  }
+</style>
+{% endblock %}
+
+========== ./dashboard/templates/dashboard/brand_list.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Marcas - Panel Admin{% endblock %}
+
+{% block content %}
+<div class="container dashboard-list">
+  <div class="list-header">
+    <h2><i class="fas fa-tag"></i> Marcas de vehículos</h2>
+    <a href="{% url 'dashboard:brand_create' %}" class="btn-hero btn-sm">
+      <i class="fas fa-plus"></i> Nueva marca
+    </a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Logo</th>
+          <th>Vehículos</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for brand in brands %}
+        <tr>
+          <td><strong>{{ brand.name }}</strong></td>
+          <td>
+            {% if brand.logo %}
+              <img src="{{ brand.logo.url }}" alt="{{ brand.name }}" style="height:30px; width:auto;">
+            {% else %}
+              <span class="text-muted">Sin logo</span>
+            {% endif %}
+          </td>
+          <td>{{ brand.vehicles.count }}</td>
+          <td>
+            <a href="{% url 'dashboard:brand_update' brand.pk %}" class="btn-icon" title="Editar">
+              <i class="fas fa-pencil-alt"></i>
+            </a>
+            <a href="{% url 'dashboard:brand_delete' brand.pk %}" class="btn-icon danger" title="Eliminar">
+              <i class="fas fa-trash"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-muted">No hay marcas registradas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+========== ./dashboard/templates/dashboard/home.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Panel de Administración - TruckSmarter{% endblock %}
+
+{% block content %}
+<div class="container dashboard-home">
+  <h1><i class="fas fa-tachometer-alt"></i> Panel de Administración</h1>
+  <div class="dashboard-grid">
+   <a href="{% url 'analytics:dashboard' %}" class="dashboard-card">
+    	<i class="fas fa-tachometer-alt"></i>
+    	<h5>Metricas</h5>
+      	<p>Acceso al panel de metricas</p>
+    </a>
+    <a href="{% url 'dashboard:user_list' %}" class="dashboard-card">
+      <i class="fas fa-users"></i>
+      <h5>Usuarios</h5>
+      <p>Gestionar usuarios, roles y permisos</p>
+    </a>
+    <a href="{% url 'dashboard:brand_list' %}" class="dashboard-card">
+      <i class="fas fa-tag"></i>
+      <h5>Marcas</h5>
+      <p>Crear o editar marcas de vehículos</p>
+    </a>
+    <a href="{% url 'vehicles:list' %}" class="dashboard-card">
+      <i class="fas fa-car"></i>
+      <h5>Vehículos</h5>
+      <p>Ver todos los vehículos publicados</p>
+    </a>
+    <a href="{% url 'admin:index' %}" class="dashboard-card" target="_blank">
+      <i class="fas fa-cog"></i>
+      <h5>Admin de Django</h5>
+      <p>Acceso al panel tradicional (avanzado)</p>
+    </a>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dashboard-home {
+    padding: 2rem 0;
+  }
+  .dashboard-home h1 {
+    font-weight: 300;
+    font-size: 2rem;
+    margin-bottom: 2rem;
+  }
+  .dashboard-home h1 i {
+    color: var(--color-accent);
+    margin-right: 0.5rem;
+  }
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.5rem;
+  }
+  .dashboard-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.8rem 1.5rem;
+    text-align: center;
+    transition: transform var(--transition), box-shadow var(--transition);
+    box-shadow: var(--shadow-sm);
+    text-decoration: none;
+    color: var(--text-primary);
+  }
+  .dashboard-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-card-hover);
+    border-color: var(--color-accent);
+  }
+  .dashboard-card i {
+    font-size: 2.8rem;
+    color: var(--color-accent);
+    margin-bottom: 0.5rem;
+  }
+  .dashboard-card h5 {
+    font-weight: 400;
+    margin-bottom: 0.3rem;
+  }
+  .dashboard-card p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  @media (max-width: 480px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+========== ./dashboard/templates/dashboard/offer_list.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Ofertas pendientes - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container dashboard-content">
+  <div class="list-header">
+    <h2><i class="fas fa-gavel"></i> Ofertas pendientes</h2>
+  </div>
+
+  <div class="table-responsive">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Vehículo</th>
+          <th>Comprador</th>
+          <th>Precio ofertado</th>
+          <th>Precio publicado</th>
+          <th>Fecha</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for offer in offers %}
+        <tr>
+          <td><strong>{{ offer.vehicle.brand.name }} {{ offer.vehicle.model }}</strong></td>
+          <td>{{ offer.buyer.get_full_name|default:offer.buyer.username }}</td>
+          <td class="price">${{ offer.offered_price }}</td>
+          <td>${{ offer.amount }}</td>
+          <td>{{ offer.created_at|date:"d/m/Y H:i" }}</td>
+          <td>
+            <form method="post" action="{% url 'sales:accept_offer' offer.pk %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn-icon" style="color:#28a745;" title="Aceptar">
+                <i class="fas fa-check"></i>
+              </button>
+            </form>
+            <form method="post" action="{% url 'sales:reject_offer' offer.pk %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn-icon danger" title="Rechazar">
+                <i class="fas fa-times"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted">No hay ofertas pendientes.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dashboard-content {
+    padding: 12vh 1.5rem 2rem;
+    min-height: 100vh;
+    max-width: 80rem;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+  .list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .list-header h2 {
+    font-weight: 300;
+    font-size: 1.8rem;
+    margin: 0;
+  }
+  .list-header h2 i {
+    color: var(--color-accent);
+    margin-right: 0.5rem;
+  }
+  .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-card);
+    backdrop-filter: blur(8px);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .admin-table thead {
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border-color);
+  }
+  .admin-table th {
+    padding: 0.8rem 1rem;
+    text-align: left;
+    font-weight: 400;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .admin-table td {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+  }
+  .admin-table tr:hover {
+    background: var(--bg-card-hover);
+  }
+  .admin-table .price {
+    color: var(--color-accent);
+    font-weight: 500;
+  }
+  .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all var(--transition);
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .btn-icon:hover {
+    background: var(--bg-card-hover);
+    color: var(--color-accent);
+  }
+  .btn-icon.danger:hover {
+    color: #d43737;
+    background: rgba(212,55,55,0.1);
+  }
+</style>
+{% endblock %}
+
+========== ./dashboard/__init__.py ==========
+
+========== ./dashboard/urls.py ==========
+# dashboard/urls.py
+from django.urls import path
+
+from . import views
+
+app_name = "dashboard"
+
+urlpatterns = [
+    path("", views.DashboardHomeView.as_view(), name="home"),
+    path("users/", views.UserListView.as_view(), name="user_list"),
+    path("users/create/", views.UserCreateView.as_view(), name="user_create"),
+    path("users/<int:pk>/edit/", views.UserUpdateView.as_view(), name="user_update"),
+    path("users/<int:pk>/delete/", views.UserDeleteView.as_view(), name="user_delete"),
+    path("brands/", views.BrandListView.as_view(), name="brand_list"),
+    path("brands/create/", views.BrandCreateView.as_view(), name="brand_create"),
+    path("brands/<int:pk>/edit/", views.BrandUpdateView.as_view(), name="brand_update"),
+    path(
+        "brands/<int:pk>/delete/", views.BrandDeleteView.as_view(), name="brand_delete"
+    ),
+    path("offers/", views.OfferListView.as_view(), name="offer_list"),
+]
+
+========== ./dashboard/admin.py ==========
+from django.contrib import admin
+
+# Register your models here.
+
+========== ./dashboard/models.py ==========
+from django.db import models
+
+# Create your models here.
+
+========== ./dashboard/views.py ==========
+# dashboard/views.py
+from django.contrib.auth import get_user_model
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.urls import reverse_lazy
+from django.views.generic import (CreateView, DeleteView, ListView,
+                                  TemplateView, UpdateView)
+
+from core.mixins import AdminRequiredMixin
+# dashboard/views.py
+from sales.models import Sale  # <-- Agregar esta línea
+from users.forms import UserAdminForm
+from vehicles.forms import BrandForm
+from vehicles.models import Brand
+
+User = get_user_model()
+
+
+# Vista de inicio del dashboard
+class DashboardHomeView(AdminRequiredMixin, LoginRequiredMixin, TemplateView):
+    template_name = "dashboard/home.html"
+
+
+# Gestión de usuarios
+class UserListView(AdminRequiredMixin, LoginRequiredMixin, ListView):
+    model = User
+    template_name = "dashboard/user_list.html"
+    context_object_name = "users"
+    ordering = ["-date_joined"]
+
+
+class UserCreateView(AdminRequiredMixin, LoginRequiredMixin, CreateView):
+    model = User
+    form_class = UserAdminForm
+    template_name = "dashboard/user_form.html"
+    success_url = reverse_lazy("dashboard:user_list")
+
+
+class UserUpdateView(AdminRequiredMixin, LoginRequiredMixin, UpdateView):
+    model = User
+    form_class = UserAdminForm
+    template_name = "dashboard/user_form.html"
+    success_url = reverse_lazy("dashboard:user_list")
+
+
+class UserDeleteView(AdminRequiredMixin, LoginRequiredMixin, DeleteView):
+    model = User
+    template_name = "dashboard/user_confirm_delete.html"
+    success_url = reverse_lazy("dashboard:user_list")
+
+
+# Gestión de marcas
+class BrandListView(AdminRequiredMixin, LoginRequiredMixin, ListView):
+    model = Brand
+    template_name = "dashboard/brand_list.html"
+    context_object_name = "brands"
+
+
+class BrandCreateView(AdminRequiredMixin, LoginRequiredMixin, CreateView):
+    model = Brand
+    form_class = BrandForm
+    template_name = "dashboard/brand_form.html"
+    success_url = reverse_lazy("dashboard:brand_list")
+
+
+class BrandUpdateView(AdminRequiredMixin, LoginRequiredMixin, UpdateView):
+    model = Brand
+    form_class = BrandForm
+    template_name = "dashboard/brand_form.html"
+    success_url = reverse_lazy("dashboard:brand_list")
+
+
+class BrandDeleteView(AdminRequiredMixin, LoginRequiredMixin, DeleteView):
+    model = Brand
+    template_name = "dashboard/brand_confirm_delete.html"
+    success_url = reverse_lazy("dashboard:brand_list")
+
+
+class OfferListView(AdminRequiredMixin, LoginRequiredMixin, ListView):
+    model = Sale
+    template_name = "dashboard/offer_list.html"
+    context_object_name = "offers"
+    queryset = Sale.objects.filter(status="offer_pending").select_related(
+        "vehicle", "buyer", "seller"
+    )
+    ordering = ["-created_at"]
+
+========== ./config/wsgi.py ==========
+"""
+WSGI config for config project.
+
+It exposes the WSGI callable as a module-level variable named ``application``.
+
+For more information on this file, see
+https://docs.djangoproject.com/en/6.1/howto/deployment/wsgi/
+"""
+
+import os
+
+from django.core.wsgi import get_wsgi_application
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+
+application = get_wsgi_application()
+
+========== ./config/settings.py ==========
+"""
+Django settings for config project.
+"""
+
+import os
+from pathlib import Path
+
+import environ
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Inicializar environ
+env = environ.Env()
+environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = env("SECRET_KEY")  # Si no existe, lanzará error
+
+# SECURITY WARNING: don't run with debug turned on in production!
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = env.bool("DEBUG", default=False)
+
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+
+# Modelo de usuario personalizado
+AUTH_USER_MODEL = "users.User"
+
+# Application definition
+INSTALLED_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "vehicles",
+    "users",
+    "core",
+    "sales",
+    "dashboard",
+    "analytics",
+    "crispy_forms",
+    "crispy_bootstrap5",
+    "sslserver",
+    "django_ratelimit",
+]
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
+
+ROOT_URLCONF = "config.urls"
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = "config.wsgi.application"
+LOGIN_REDIRECT_URL = "vehicles:list"
+LOGIN_URL = "/users/login/"
+LOGIN_REDIRECT_URL = "vehicles:list"  # por defecto
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# Database
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": env("DB_NAME"),
+        "USER": env("DB_USER"),
+        "PASSWORD": env("DB_PASSWORD"),
+        "HOST": env("DB_HOST", default="localhost"),
+        "PORT": env("DB_PORT", default="5432"),
+    }
+}
+
+# Password validation
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {
+            "min_length": 8,
+        },
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+    },
+]
+
+# Internationalization
+LANGUAGE_CODE = "es-es"  # Cambiar a español
+TIME_ZONE = "America/Mexico_City"  # Ajustar a tu zona horaria
+USE_I18N = True
+USE_TZ = True
+
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = "/static/"
+STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Media files (archivos subidos por usuarios)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+# Email configuration (para notificaciones)
+EMAIL_BACKEND = env(
+    "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
+)
+EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="webmaster@localhost")
+
+# Security settings for production (opcional pero recomendado)
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 año
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    X_FRAME_OPTIONS = "DENY"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "loggers": {
+        "sales": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+    },
+}
+
+# Crispy-forms configuration
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# Cache (usar Redis en producción)
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
+}
+
+CSRF_TRUSTED_ORIGINS = ["https://mariana-flagless-inaudibly.ngrok-free.dev"]
+
+
+# Tiempo de expiración para evitar vistas duplicadas (en segundos)
+VIEW_EXPIRY_SECONDS = 86400  # 24 horas
+
+========== ./config/__init__.py ==========
+
+========== ./config/urls.py ==========
+from django.conf import settings
+from django.conf.urls.static import static
+from django.contrib import admin
+from django.urls import include, path
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("", include("vehicles.urls")),
+    path("users/", include("users.urls")),
+    path("sales/", include("sales.urls")),
+    path("dashboard/", include("dashboard.urls")),
+    path("analytics/", include("analytics.urls")),
+]
+
+# Servir archivos estáticos y multimedia en desarrollo
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+========== ./config/asgi.py ==========
+"""
+ASGI config for config project.
+
+It exposes the ASGI callable as a module-level variable named ``application``.
+
+For more information on this file, see
+https://docs.djangoproject.com/en/6.1/howto/deployment/asgi/
+"""
+
+import os
+
+from django.core.asgi import get_asgi_application
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+
+application = get_asgi_application()
+
+========== ./templates/emails/offer_accepted.html ==========
+<h2>Oferta aceptada</h2>
+<p>Hola {{ buyer.full_name }},</p>
+<p>Tu oferta de ${{ offered_price }} por {{ vehicle.brand }} {{ vehicle.model }} ha sido aceptada.</p>
+<p>El vendedor se pondrá en contacto contigo.</p>
+
+========== ./templates/emails/offer_rejected.html ==========
+<h2>Oferta rechazada</h2>
+<p>Hola {{ buyer.full_name }},</p>
+<p>Tu oferta de ${{ offered_price }} por {{ vehicle.brand }} {{ vehicle.model }} ha sido rechazada.</p>
+<p>Puedes hacer una nueva oferta.</p>
+
+========== ./templates/emails/reservation_confirmation.html ==========
+<h2>Reserva confirmada</h2>
+<p>Hola {{ buyer.full_name }},</p>
+<p>Has reservado el vehículo {{ vehicle.brand }} {{ vehicle.model }} ({{ vehicle.year }}) por ${{ vehicle.price }}.</p>
+<p>El administrador se pondrá en contacto contigo para completar la compra.</p>
+<p>ID de reserva: #{{ sale_id }}</p>
+<p>Fecha: {{ sale_date|date:"d/m/Y H:i" }}</p>
+
+========== ./templates/emails/admin_reservation_notification.html ==========
+<h2>Nueva reserva</h2>
+<p>El usuario {{ buyer.full_name }} ({{ buyer.email }}) ha reservado el vehículo {{ vehicle.brand }} {{ vehicle.model }} ({{ vehicle.year }}) por ${{ vehicle.price }}.</p>
+<p>ID de reserva: #{{ sale_id }}</p>
+<p>Fecha: {{ sale_date|date:"d/m/Y H:i" }}</p>
+<p>Puedes gestionar esta reserva desde el panel de administración.</p>
+
+========== ./templates/emails/admin_reservation_cancelled.html ==========
+<h2>Reserva cancelada</h2>
+<p>El usuario {{ user.full_name }} ({{ user.email }}) ha cancelado la reserva del vehículo {{ vehicle.brand }} {{ vehicle.model }} ({{ vehicle.year }}).</p>
+<p>El vehículo vuelve a estar disponible.</p>
+
+========== ./templates/emails/sale_notification.html ==========
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #d45d1a, #f07a3a); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { padding: 20px; }
+        .vehicle-details { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .detail-item { padding: 5px 0; }
+        .label { font-weight: bold; color: #1a3a5c; }
+        .highlight { color: #d45d1a; font-weight: bold; }
+        .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 20px; }
+        .success-badge { background: #28a745; color: white; padding: 3px 10px; border-radius: 20px; display: inline-block; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>¡Vehículo Vendido! 🚗</h2>
+        </div>
+        <div class="content">
+            <p>Hola <strong>{{ seller.full_name }}</strong>,</p>
+            <p><span class="success-badge">¡VENDIDO!</span></p>
+            <p>¡Excelentes noticias! Tu vehículo ha sido vendido a través de TruckSmarter.</p>
+            
+            <div class="vehicle-details">
+                <h3>{{ vehicle.brand }} {{ vehicle.model }}</h3>
+                <div class="details-grid">
+                    <div class="detail-item"><span class="label">Año:</span> {{ vehicle.year }}</div>
+                    <div class="detail-item"><span class="label">Precio de venta:</span> <span class="highlight">${{ vehicle.price }}</span></div>
+                </div>
+            </div>
+            
+            <h4>👤 Datos del Comprador</h4>
+            <div class="buyer-details">
+                <p><strong>Nombre:</strong> {{ buyer.full_name }}</p>
+                <p><strong>Email:</strong> {{ buyer.email }}</p>
+                <p><strong>Teléfono:</strong> {{ buyer.phone }}</p>
+                <p><strong>Dirección:</strong> {{ buyer.address }}</p>
+            </div>
+            
+            <p style="margin-top: 20px; padding: 15px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+                <strong>✅ Próximos pasos:</strong> Contacta al comprador para coordinar la entrega del vehículo y el pago.
+            </p>
+            
+            <p style="margin-top: 20px;">¡Gracias por confiar en <strong>TruckSmarter</strong> para vender tu vehículo!</p>
+            
+            <hr>
+            <p style="font-size: 14px; color: #666;">ID de transacción: #{{ sale_id }} | Fecha: {{ sale_date|date:"d/m/Y H:i" }}</p>
+        </div>
+        <div class="footer">
+            <p>© 2026 TruckSmarter - Tu plataforma de confianza para comprar y vender vehículos.</p>
+        </div>
+    </div>
+</body>
+</html>
+
+========== ./templates/emails/reservation_cancelled.html ==========
+<h2>Reserva cancelada</h2>
+<p>Hola {{ user.full_name }},</p>
+<p>Has cancelado la reserva del vehículo {{ vehicle.brand }} {{ vehicle.model }} ({{ vehicle.year }}).</p>
+<p>El vehículo vuelve a estar disponible para otros usuarios.</p>
+<p>Gracias por usar TruckSmarter.</p>
+
+========== ./templates/emails/offer_confirmation.html ==========
+<h2>Oferta enviada</h2>
+<p>Hola {{ buyer.full_name }},</p>
+<p>Has enviado una oferta de ${{ offered_price }} por {{ vehicle.brand }} {{ vehicle.model }}.</p>
+<p>Estamos revisando tu oferta.</p>
+<p>Gracias por confiar en TruckSmarter.</p>
+
+========== ./templates/emails/purchase_confirmation.html ==========
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #1a3a5c, #2a5a8c); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { padding: 20px; }
+        .vehicle-details { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .detail-item { padding: 5px 0; }
+        .label { font-weight: bold; color: #1a3a5c; }
+        .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 20px; }
+        .highlight { color: #d45d1a; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>¡Compra Confirmada! 🎉</h2>
+        </div>
+        <div class="content">
+            <p>Hola <strong>{{ buyer.full_name }}</strong>,</p>
+            <p>¡Felicidades! Has comprado el siguiente vehículo:</p>
+            
+            <div class="vehicle-details">
+                <h3>{{ vehicle.brand }} {{ vehicle.model }}</h3>
+                <div class="details-grid">
+                    <div class="detail-item"><span class="label">Año:</span> {{ vehicle.year }}</div>
+                    <div class="detail-item"><span class="label">Precio:</span> <span class="highlight">${{ vehicle.price }}</span></div>
+                </div>
+            </div>
+            
+            <h4>📞 Datos del Vendedor</h4>
+            <div class="seller-details">
+                <p><strong>Nombre:</strong> {{ seller.full_name }}</p>
+                <p><strong>Email:</strong> {{ seller.email }}</p>
+                <p><strong>Teléfono:</strong> {{ seller.phone }}</p>
+                <p><strong>Dirección:</strong> {{ seller.address }}</p>
+            </div>
+            
+            <p style="margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                <strong>📝 Próximos pasos:</strong> Contacta al vendedor para coordinar la entrega del vehículo y el pago.
+            </p>
+            
+            <p style="margin-top: 20px;">Gracias por confiar en <strong>TruckSmarter</strong>.</p>
+            
+            <hr>
+            <p style="font-size: 14px; color: #666;">ID de transacción: #{{ sale_id }} | Fecha: {{ sale_date|date:"d/m/Y H:i" }}</p>
+        </div>
+        <div class="footer">
+            <p>© 2026 TruckSmarter - Tu plataforma de confianza para comprar y vender vehículos.</p>
+        </div>
+    </div>
+</body>
+</html>
+
+========== ./templates/emails/verify_email.html ==========
+<h2>Hola {{ user.username }},</h2>
+<p>Gracias por registrarte en TruckSmarter. Para verificar tu email, haz clic en el siguiente enlace:</p>
+<p><a href="{{ site_url }}{% url 'users:verify_email' token %}">Verificar mi email</a></p>
+<p>Este enlace expirará en 24 horas.</p>
+<p>Si no solicitaste este registro, ignora este mensaje.</p>
+
+========== ./templates/emails/admin_offer_notification.html ==========
+<h2>Nueva oferta</h2>
+<p>El usuario {{ buyer.full_name }} ({{ buyer.email }}) ha ofertado ${{ offered_price }} por {{ vehicle.brand }} {{ vehicle.model }}.</p>
+<p>Gestiona esta oferta desde el dashboard.</p>
+
+========== ./templates/emails/confirm_delete.html ==========
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Eliminar vehículo{% endblock %}
+
+{% block content %}
+<div class="container confirm-container">
+  <div class="confirm-card">
+    <h2><i class="fas fa-exclamation-triangle"></i> Eliminar vehículo</h2>
+    <p>¿Estás seguro de que quieres eliminar el vehículo <strong>{{ object }}</strong>?</p>
+    <p class="text-muted">Esta acción no se puede deshacer.</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="confirm-actions">
+        <button type="submit" class="btn-hero" style="background:#d43737; border-color:#d43737;">
+          <i class="fas fa-trash"></i> Eliminar
+        </button>
+        <a href="{% url 'vehicles:list' %}" class="btn-outline-gold">
+          <i class="fas fa-times"></i> Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .confirm-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+  }
+  .confirm-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: var(--shadow-card);
+    text-align: center;
+  }
+  .confirm-card h2 {
+    font-weight: 300;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+  }
+  .confirm-card h2 i {
+    color: #d43737;
+    margin-right: 0.5rem;
+  }
+  .confirm-card p {
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+  .confirm-card .text-muted {
+    font-size: 0.85rem;
+  }
+  .confirm-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .confirm-actions .btn-hero {
+    background: #d43737;
+    border-color: #d43737;
+  }
+  .confirm-actions .btn-hero:hover {
+    background: #b32a2a;
+    border-color: #b32a2a;
+  }
+  .confirm-actions .btn-hero,
+  .confirm-actions .btn-outline-gold {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+</style>
+{% endblock %}
+
+========== ./templates/includes/pagination.html ==========
+{% if is_paginated %}
+<nav aria-label="Paginación" class="pagination-nav">
+    <ul class="pagination">
+        {% if page_obj.has_previous %}
+        <li>
+            <a href="?page=1" aria-label="Primera">
+                <i class="fas fa-angle-double-left"></i>
+            </a>
+        </li>
+        <li>
+            <a href="?page={{ page_obj.previous_page_number }}" aria-label="Anterior">
+                <i class="fas fa-angle-left"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="disabled">
+            <span><i class="fas fa-angle-double-left"></i></span>
+        </li>
+        <li class="disabled">
+            <span><i class="fas fa-angle-left"></i></span>
+        </li>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+                <li class="active"><span>{{ num }}</span></li>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li><a href="?page={{ num }}">{{ num }}</a></li>
+            {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <li>
+            <a href="?page={{ page_obj.next_page_number }}" aria-label="Siguiente">
+                <i class="fas fa-angle-right"></i>
+            </a>
+        </li>
+        <li>
+            <a href="?page={{ page_obj.paginator.num_pages }}" aria-label="Última">
+                <i class="fas fa-angle-double-right"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="disabled">
+            <span><i class="fas fa-angle-right"></i></span>
+        </li>
+        <li class="disabled">
+            <span><i class="fas fa-angle-double-right"></i></span>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+========== ./templates/base.html ==========
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TruckSmarter · {% block title %}Concesionario Exclusivo{% endblock %}</title>
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,600;14..32,700&display=swap" rel="stylesheet" />
+  <!-- CSS personalizado -->
+  <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <!-- ===== NAVBAR ===== -->
+  <nav class="navbar">
+    <span class="navbar-brand">
+      <i class="fas fa-truck"></i> Concesionario de autos importados a Cuba
+    </span>
+    <div class="navbar-links">
+      <a href="{% url 'vehicles:list' %}"><i class="fas fa-home"></i> Inicio</a>
+      {% if user.is_authenticated %}
+        {% if user.is_authenticated and user.role == 'seller' or user.role == 'admin' or user.is_superuser %}
+          <a href="{% url 'vehicles:create' %}"><i class="fas fa-plus-circle"></i> Publicar</a>
+        {% endif %}
+        <a href="{% url 'users:profile' %}"><i class="fas fa-user"></i> Perfil</a>
+        <a href="{% url 'users:logout' %}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+          <i class="fas fa-sign-out-alt"></i> Salir
+        </a>
+        	{% if user.is_authenticated and user.role == 'admin' or user.is_superuser %}
+  		<a href="{% url 'dashboard:home' %}"><i class="fas fa-tachometer-alt"></i> Panel</a>
+		{% endif %}
+        <form id="logout-form" action="{% url 'users:logout' %}" method="post" style="display: none;">
+          {% csrf_token %}
+        </form>
+      {% else %}
+        <a href="{% url 'users:login' %}"><i class="fas fa-sign-in-alt"></i> Ingresar</a>
+        <a href="{% url 'users:register' %}"><i class="fas fa-user-plus"></i> Registrarse</a>
+      {% endif %}
+      <button class="theme-toggle" id="themeToggle" aria-label="Cambiar tema">
+        <i class="fas fa-moon"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ===== CONTENIDO PRINCIPAL ===== -->
+  <main>
+    {% block hero %}{% endblock %}
+    <div class="container">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <div class="section-footer">
+    <i class="fas fa-shield-alt"></i> Exclusividad garantizada · 
+    <i class="fas fa-phone-alt"></i> +1 800 555 0199
+  </div>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script src="{% static 'js/main.js' %}"></script>
+  <script>(function() {
+      const toggle = document.getElementById('themeToggle');
+      const body = document.body;
+
+      if (localStorage.getItem('theme') === 'dark') {
+        body.classList.add('dark-mode');
+        toggle.innerHTML = '<i class="fas fa-sun"></i>';
+      } else {
+        toggle.innerHTML = '<i class="fas fa-moon"></i>';
+      }
+
+      toggle.addEventListener('click', function() {
+        body.classList.toggle('dark-mode');
+        if (body.classList.contains('dark-mode')) {
+          localStorage.setItem('theme', 'dark');
+          toggle.innerHTML = '<i class="fas fa-sun"></i>';
+        } else {
+          localStorage.setItem('theme', 'light');
+          toggle.innerHTML = '<i class="fas fa-moon"></i>';
+        }
+      });
+    })();</script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>
+
+========== ./templates/analytics/vehicle_stats.html ==========
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container" style="padding-top: 2rem;">
+
+    <!-- Título y datos del vehículo -->
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+        <h2 style="font-weight: 300; letter-spacing: 0.04em; color: var(--text-primary);">
+            🚗 {{ vehicle.brand.name }} {{ vehicle.model }}
+        </h2>
+        <span style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 40px; padding: 0.3rem 1.2rem; color: var(--text-muted); font-weight: 300; font-size: 0.85rem; letter-spacing: 0.04em;">
+            {{ vehicle.year }} · ${{ vehicle.price }}
+        </span>
+    </div>
+
+    <!-- Tarjeta de contador -->
+    <div style="display: grid; grid-template-columns: 1fr; max-width: 300px; margin-bottom: 2.5rem;">
+        <div style="background: var(--bg-card); backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.5rem 2rem; box-shadow: var(--shadow-card); text-align: center;">
+            <div style="font-size: 2.5rem; color: var(--color-accent);">👁️</div>
+            <div style="font-weight: 300; font-size: 3rem; letter-spacing: 0.02em; color: var(--text-primary);">{{ vehicle.view_count }}</div>
+            <div style="color: var(--text-muted); font-weight: 300; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em;">Total de vistas</div>
+        </div>
+    </div>
+
+    <!-- Últimas 10 vistas -->
+    <h3 style="font-weight: 300; letter-spacing: 0.06em; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.6rem; display: flex; align-items: center; gap: 0.6rem;">
+        <span>🕒</span> Últimas 10 vistas
+    </h3>
+
+    <div style="overflow-x: auto; margin-top: 1.5rem;">
+        <table style="width: 100%; border-collapse: separate; border-spacing: 0 8px;">
+            <thead>
+                <tr style="color: var(--text-muted); font-weight: 300; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;">
+                    <th style="padding: 0.5rem 1rem; text-align: left;">Fecha</th>
+                    <th style="padding: 0.5rem 1rem; text-align: left;">Usuario</th>
+                    <th style="padding: 0.5rem 1rem; text-align: left;">Sesión</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for view in recent_views %}
+                <tr style="background: var(--bg-card); backdrop-filter: blur(8px); border: 1px solid var(--border-color); border-radius: var(--radius-lg); transition: all var(--transition);">
+                    <td style="padding: 0.8rem 1rem; border-radius: var(--radius-lg) 0 0 var(--radius-lg); font-weight: 300; color: var(--text-secondary);">
+                        {{ view.viewed_at|date:"d/m/Y H:i" }}
+                    </td>
+                    <td style="padding: 0.8rem 1rem; font-weight: 300; color: var(--text-secondary);">
+                        {{ view.user|default:"Anónimo" }}
+                    </td>
+                    <td style="padding: 0.8rem 1rem; font-family: monospace; font-size: 0.8rem; color: var(--text-muted);">
+                        {{ view.session_key|default:"-" }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" style="padding: 2rem; text-align: center; color: var(--text-muted); font-weight: 300;">
+                        No hay vistas registradas para este vehículo.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Botón volver -->
+    <div style="margin: 2rem 0 3rem;">
+        <a href="{% url 'analytics:dashboard' %}" style="display: inline-block; background: transparent; border: 1px solid var(--color-accent); color: var(--color-accent); padding: 0.5rem 1.8rem; border-radius: 40px; font-weight: 400; font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; transition: all 0.3s ease; cursor: pointer; text-decoration: none;">
+            ← Volver al panel
+        </a>
+    </div>
+
+</div>
+{% endblock %}
+
+========== ./templates/analytics/dashboard.html ==========
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container" style="padding-top: 2rem;">
+
+    <!-- Título -->
+    <div class="section-header" style="text-align: left; margin-top: 1rem;">
+        <h2 style="font-weight: 300; letter-spacing: 0.06em; color: var(--text-primary);">
+            📊 Panel de métricas de vistas
+        </h2>
+        <p style="color: var(--text-muted); font-weight: 300; letter-spacing: 0.04em;">
+            Resumen de actividad de los vehículos
+        </p>
+    </div>
+
+    <!-- Tarjetas de métricas -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin: 2rem 0;">
+        
+        <div style="background: var(--bg-card); backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-card); transition: all var(--transition);">
+            <div style="font-size: 2rem; color: var(--color-accent);">🚗</div>
+            <div style="font-weight: 300; font-size: 2.5rem; letter-spacing: 0.02em; color: var(--text-primary);">{{ total_vehicles }}</div>
+            <div style="color: var(--text-muted); font-weight: 300; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em;">Total vehículos</div>
+        </div>
+
+        <div style="background: var(--bg-card); backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-card); transition: all var(--transition);">
+            <div style="font-size: 2rem; color: var(--color-accent);">👁️</div>
+            <div style="font-weight: 300; font-size: 2.5rem; letter-spacing: 0.02em; color: var(--text-primary);">{{ total_views }}</div>
+            <div style="color: var(--text-muted); font-weight: 300; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em;">Total vistas</div>
+        </div>
+
+        <div style="background: var(--bg-card); backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-card); transition: all var(--transition);">
+            <div style="font-size: 2rem; color: var(--color-accent);">📈</div>
+            <div style="font-weight: 300; font-size: 2.5rem; letter-spacing: 0.02em; color: var(--text-primary);">{{ avg_views_per_vehicle }}</div>
+            <div style="color: var(--text-muted); font-weight: 300; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em;">Promedio por vehículo</div>
+        </div>
+
+    </div>
+
+    <!-- Tabla Top 10 -->
+    <div style="margin: 3rem 0;">
+        <h3 style="font-weight: 300; letter-spacing: 0.06em; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.6rem; display: flex; align-items: center; gap: 0.6rem;">
+            <span>🏆</span> Top 10 vehículos más vistos
+        </h3>
+
+        <div style="overflow-x: auto; margin-top: 1.5rem;">
+            <table style="width: 100%; border-collapse: separate; border-spacing: 0 8px;">
+                <thead>
+                    <tr style="color: var(--text-muted); font-weight: 300; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;">
+                        <th style="padding: 0.5rem 1rem; text-align: left;">#</th>
+                        <th style="padding: 0.5rem 1rem; text-align: left;">Vehículo</th>
+                        <th style="padding: 0.5rem 1rem; text-align: right;">Vistas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vehicle in top_vehicles %}
+                    <tr style="background: var(--bg-card); backdrop-filter: blur(8px); border: 1px solid var(--border-color); border-radius: var(--radius-lg); transition: all var(--transition);">
+                        <td style="padding: 0.8rem 1rem; border-radius: var(--radius-lg) 0 0 var(--radius-lg);">
+                            <span style="background: rgba(212, 168, 55, 0.15); border: 1px solid var(--color-accent); color: var(--color-accent); padding: 0.1rem 0.7rem; border-radius: 40px; font-size: 0.75rem;">{{ forloop.counter }}</span>
+                        </td>
+                        <td style="padding: 0.8rem 1rem;">
+                            <a href="{% url 'analytics:vehicle_stats' vehicle.pk %}" style="color: var(--text-primary); font-weight: 400; text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 0.2s;">
+                                {{ vehicle.brand.name }} {{ vehicle.model }}
+                            </a>
+                            <style>
+                                a:hover { border-bottom-color: var(--color-accent); }
+                            </style>
+                        </td>
+                        <td style="padding: 0.8rem 1rem; text-align: right; font-weight: 400; color: var(--color-accent);">
+                            {{ vehicle.view_count }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" style="padding: 2rem; text-align: center; color: var(--text-muted); font-weight: 300;">
+                            No hay vehículos con vistas registradas aún.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Botón volver -->
+    <div style="margin: 2rem 0 3rem;">
+        <a href="{% url 'vehicles:list' %}" style="display: inline-block; background: transparent; border: 1px solid var(--color-accent); color: var(--color-accent); padding: 0.5rem 1.8rem; border-radius: 40px; font-weight: 400; font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; transition: all 0.3s ease; cursor: pointer; text-decoration: none;">
+            ← Volver al catálogo
+        </a>
+    </div>
+
+</div>
+{% endblock %}
+

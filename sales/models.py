@@ -6,8 +6,9 @@ from vehicles.models import Vehicle
 
 class Sale(models.Model):
     STATUS_CHOICES = (
-        ("pending", "Pendiente"),
-        ("reserved", "Reservado"), 
+        ("offer_pending", "Oferta pendiente"),
+        ("offer_accepted", "Oferta aceptada"),
+        ("offer_rejected", "Oferta rechazada"),
         ("completed", "Completada"),
         ("cancelled", "Cancelada"),
     )
@@ -18,11 +19,17 @@ class Sale(models.Model):
     seller = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sales"
     )
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    amount = models.DecimalField(
+        max_digits=12, decimal_places=2
+    )  # Precio original del vehículo
+    offered_price = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )  # Precio ofertado
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="offer_pending"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    # Datos de pago del comprador (opcional)
     buyer_phone = models.CharField(max_length=20, blank=True)
     buyer_email = models.EmailField(blank=True)
     notes = models.TextField(blank=True)

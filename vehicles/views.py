@@ -2,16 +2,20 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
 
-from core.mixins import OwnerOrAdminRequiredMixin, AdminRequiredMixin
+from analytics.mixins import TrackVehicleViewMixin
+from core.mixins import (AdminRequiredMixin, OwnerOrAdminRequiredMixin,
+                         SellerRequiredMixin)
+# vehicles/views.py
+from sales.models import Sale  # <-- Agregar esta línea
 
 from .forms import VehicleForm
 from .models import Vehicle
-from django.shortcuts import redirect
-from analytics.mixins import TrackVehicleViewMixin
+from django.views import View
 
 class VehicleListView(ListView):
     model = Vehicle
@@ -54,22 +58,37 @@ class VehicleListView(ListView):
         return qs
 
 
-class VehicleDetailView(TrackVehicleViewMixin,DetailView):
+class VehicleDetailView(TrackVehicleViewMixin, DetailView):
     model = Vehicle
     template_name = "vehicles/detail.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Verificar si el usuario puede editar este vehículo
         vehicle = self.get_object()
         user = self.request.user
+
+        # Oferta pendiente del usuario actual (si existe)
+        user_pending_offer = None
+        if user.is_authenticated:
+            user_pending_offer = Sale.objects.filter(
+                vehicle=vehicle, buyer=user, status="offer_pending"
+            ).first()
+
+        context["user_pending_offer"] = user_pending_offer
+        context["user_has_pending_offer"] = user_pending_offer is not None
+
+        # Oferta pendiente general (para otros usos, como mostrar el estado global)
+        context["pending_offer"] = Sale.objects.filter(
+            vehicle=vehicle, status="offer_pending"
+        ).first()
+
         context["can_edit"] = user.is_authenticated and (
             user.role == "admin" or user.is_superuser or vehicle.created_by == user
         )
         return context
 
 
-class VehicleCreateView(LoginRequiredMixin, AdminRequiredMixin, CreateView):
+class VehicleCreateView(LoginRequiredMixin, SellerRequiredMixin, CreateView):
     model = Vehicle
     form_class = VehicleForm
     template_name = "vehicles/form.html"
@@ -104,16 +123,15 @@ class VehicleUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateView):
         return super().form_invalid(form)
 
 
-class VehicleDeleteView(LoginRequiredMixin, OwnerOrAdminRequiredMixin, DeleteView):
-    model = Vehicle
-    template_name = 'vehicles/confirm_delete.html'
-    success_url = reverse_lazy('vehicles:list')
+class VehicleDeleteView(LoginRequiredMixin, OwnerOrAdminRequiredMixin, View):
+    def get(self, request, pk, *args, **kwargs):
+        vehicle = get_object_or_404(Vehicle, pk=pk)
+        return render(request, 'vehicles/confirm_delete.html', {'object': vehicle})
 
-    def delete(self, request, *args, **kwargs):
-        """Soft delete: marcar como inactivo en lugar de eliminar."""
-        self.object = self.get_object()
-        self.object.is_active = False
-        self.object.sold = True  # Opcional
-        self.object.save()
+    def post(self, request, pk, *args, **kwargs):
+        vehicle = get_object_or_404(Vehicle, pk=pk)
+        vehicle.is_active = False
+        vehicle.sold = True
+        vehicle.save()
         messages.success(request, "Vehículo eliminado correctamente.")
-        return redirect(self.success_url)
+        return redirect('vehicles:list')

@@ -1,27 +1,51 @@
+from datetime import timedelta
+
 from django.contrib import messages
-from django.urls import reverse
 from django.contrib.auth import get_user_model, login, logout
-from django.contrib.auth.mixins import (LoginRequiredMixin,
-                                        UserPassesTestMixin)
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
+from django.utils import timezone
+from django.utils.decorators import method_decorator
 from django.views.generic import ListView, UpdateView
+from django_ratelimit.decorators import ratelimit
 
 from .forms import CustomUserCreationForm, ProfileForm, UserAdminForm
-from .models import Profile, User
+from .models import EmailVerification, Profile, User
+from .services import send_verification_email
+from django_ratelimit.exceptions import Ratelimited
+from django.http import HttpResponse
+# y usar HttpResponse("...", status=429)
+
 
 User = get_user_model()
 
 
+@ratelimit(key="ip", rate="5/m", method="POST", block=True)
 def register(request):
     if request.method == "POST":
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
-            messages.success(request, "Registro exitoso. Bienvenido!")
+
+            # Crear token de verificación de email
+            token = EmailVerification.objects.create(
+                user=user,
+                email=user.email,
+                expires_at=timezone.now() + timedelta(hours=24),
+            )
+            # Enviar email con el enlace de verificación
+            send_verification_email(user, token)
+
+            messages.success(
+                request,
+                "Registro exitoso. Bienvenido! Revisa tu email para verificar tu cuenta.",
+            )
             return redirect("vehicles:list")
+        else:
+            messages.error(request, "Por favor corrige los errores del formulario.")
     else:
         form = CustomUserCreationForm()
     return render(request, "users/register.html", {"form": form})
@@ -42,16 +66,25 @@ class UserUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     success_url = reverse_lazy("users:admin_list")
 
 
-# users/views.py
+
+
 class CustomLoginView(LoginView):
     template_name = 'users/login.html'
     redirect_authenticated_user = True
 
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            return super().dispatch(request, *args, **kwargs)
+        except Ratelimited:
+            return HttpResponse("Demasiados intentos. Intenta de nuevo en un minuto.", status=429)
+            
     def get_success_url(self):
         user = self.request.user
-        if user.is_superuser or user.role == 'admin':
-            return reverse('dashboard:home')
-        return reverse('vehicles:list')
+        if user.is_superuser or user.role == "admin":
+            return reverse("dashboard:home")
+        return reverse("vehicles:list")
+
 
 class CustomLogoutView(LogoutView):
     next_page = "vehicles:list"
@@ -124,3 +157,34 @@ class ChangeRoleView(LoginRequiredMixin, UpdateView):
             # messages.info(request, 'Has vuelto a ser cliente.')
             messages.info(request, "Ya eres comerciante.")
         return redirect(self.success_url)
+
+
+# users/views.py
+def send_verification_code(request):
+    # Generar código de 6 dígitos y enviar por email
+    pass
+
+
+def verify_code(request):
+    # Validar código ingresado y marcar email como verificado
+    pass
+
+
+def verify_email(request, token):
+    try:
+        verification = EmailVerification.objects.get(token=token, is_verified=False)
+        if verification.is_expired():
+            messages.error(
+                request,
+                "El enlace ha expirado. Solicita un nuevo enlace de verificación.",
+            )
+            return redirect("users:login")
+        verification.is_verified = True
+        verification.save()
+        # Opcional: marcar el email del usuario como verificado (si agregas un campo `email_verified` en User)
+        messages.success(
+            request, "Email verificado correctamente. ¡Ya puedes iniciar sesión!"
+        )
+    except EmailVerification.DoesNotExist:
+        messages.error(request, "Enlace inválido o ya utilizado.")
+    return redirect("users:login")

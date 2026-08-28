@@ -18,12 +18,12 @@
   <!-- ===== NAVBAR ===== -->
   <nav class="navbar">
     <span class="navbar-brand">
-      <i class="fas fa-truck"></i> TruckSmarter
+      <i class="fas fa-truck"></i> Concesionario de autos importados a Cuba
     </span>
     <div class="navbar-links">
       <a href="{% url 'vehicles:list' %}"><i class="fas fa-home"></i> Inicio</a>
       {% if user.is_authenticated %}
-        {% if user.is_authenticated and user.role == 'admin' or user.is_superuser %}
+        {% if user.is_authenticated and user.role == 'seller' or user.role == 'admin' or user.is_superuser %}
           <a href="{% url 'vehicles:create' %}"><i class="fas fa-plus-circle"></i> Publicar</a>
         {% endif %}
         <a href="{% url 'users:profile' %}"><i class="fas fa-user"></i> Perfil</a>

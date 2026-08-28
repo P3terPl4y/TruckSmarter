@@ -1,162 +1,182 @@
-from django.test import TestCase, Client
-from django.urls import reverse
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
-from vehicles.models import Vehicle, Brand
-from users.models import Profile
+from django.test import Client, TestCase
+from django.urls import reverse
+
+from vehicles.models import Brand, Vehicle
+
 from .models import Sale
 
 User = get_user_model()
 
-class SaleModelTest(TestCase):
-    """Pruebas para el modelo Sale."""
 
+class SaleModelTest(TestCase):
     def setUp(self):
-        self.brand = Brand.objects.create(name='Toyota')
+        self.brand = Brand.objects.create(name="Toyota")
         self.seller = User.objects.create_user(
-            username='seller',
-            email='seller@test.com',
-            password='testpass123',
-            role='admin'
+            username="seller",
+            email="seller@test.com",
+            password="testpass123",
+            role="seller",
         )
-       
         self.buyer = User.objects.create_user(
-            username='buyer',
-            email='buyer@test.com',
-            password='testpass123',
-            role='customer'
+            username="buyer",
+            email="buyer@test.com",
+            password="testpass123",
+            role="customer",
         )
-       
         self.vehicle = Vehicle.objects.create(
             brand=self.brand,
-            model='Corolla',
+            model="Corolla",
             year=2020,
             price=20000.00,
             mileage=15000,
-            transmission='automatic',
-            fuel_type='gasoline',
-            status='used',
+            transmission="automatic",
+            fuel_type="gasoline",
+            status="used",
             created_by=self.seller,
             is_active=True,
             sold=False,
         )
 
-    def test_sale_creation(self):
-        """Verifica que se pueda crear una venta."""
+    def test_offer_creation(self):
         sale = Sale.objects.create(
             vehicle=self.vehicle,
             buyer=self.buyer,
             seller=self.seller,
             amount=self.vehicle.price,
-            status='completed',
-            buyer_phone='123456789',
-            buyer_email='buyer@test.com'
+            offered_price=Decimal("15000.00"),
+            status="offer_pending",
+            buyer_phone="123456789",
+            buyer_email="buyer@test.com",
         )
-        self.assertEqual(sale.vehicle, self.vehicle)
-        self.assertEqual(sale.buyer, self.buyer)
-        self.assertEqual(sale.seller, self.seller)
-        self.assertEqual(sale.amount, self.vehicle.price)
-        self.assertEqual(str(sale), f"Venta de {self.vehicle} - {self.buyer.username}")
+        self.assertEqual(sale.offered_price, Decimal("15000.00"))
+        self.assertEqual(sale.status, "offer_pending")
 
 
-class PurchaseViewTest(TestCase):
-    """Pruebas para la vista purchase_vehicle."""
-
+class MakeOfferViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.brand = Brand.objects.create(name='Toyota')
+        self.brand = Brand.objects.create(name="Toyota")
         self.seller = User.objects.create_user(
-            username='seller',
-            email='seller@test.com',
-            password='testpass123',
-            role='admin'
+            username="seller",
+            email="seller@test.com",
+            password="testpass123",
+            role="seller",
         )
-       
         self.buyer = User.objects.create_user(
-            username='buyer',
-            email='buyer@test.com',
-            password='testpass123',
-            role='customer'
+            username="buyer",
+            email="buyer@test.com",
+            password="testpass123",
+            role="customer",
         )
-        
         self.vehicle = Vehicle.objects.create(
             brand=self.brand,
-            model='Corolla',
+            model="Corolla",
             year=2020,
             price=20000.00,
             mileage=15000,
-            transmission='automatic',
-            fuel_type='gasoline',
-            status='used',
+            transmission="automatic",
+            fuel_type="gasoline",
+            status="used",
             created_by=self.seller,
             is_active=True,
             sold=False,
         )
 
-    def test_purchase_vehicle_success(self):
-        """Verifica que la compra sea exitosa."""
+    def test_make_offer_success(self):
         self.client.force_login(self.buyer)
-        response = self.client.post(reverse('sales:purchase', args=[self.vehicle.id]))
-        self.assertEqual(response.status_code, 302)  # Redirección
-        self.vehicle.refresh_from_db()
-        self.assertTrue(self.vehicle.sold)
-        self.assertFalse(self.vehicle.is_active)
-        # Verificar que se creó la venta
-        sale = Sale.objects.first()
-        self.assertIsNotNone(sale)
-        self.assertEqual(sale.buyer, self.buyer)
-        self.assertEqual(sale.seller, self.seller)
-        self.assertEqual(sale.amount, self.vehicle.price)
+        response = self.client.post(
+            reverse("sales:make_offer", args=[self.vehicle.id]),
+            {"offered_price": "15000"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            Sale.objects.filter(vehicle=self.vehicle, status="offer_pending").exists()
+        )
 
-    def test_purchase_vehicle_own_vehicle(self):
-        """Verifica que no se pueda comprar el propio vehículo."""
+    def test_make_offer_own_vehicle(self):
         self.client.force_login(self.seller)
-        response = self.client.post(reverse('sales:purchase', args=[self.vehicle.id]))
-        self.assertEqual(response.status_code, 302)  # Redirección
-        self.assertFalse(self.vehicle.sold)  # No se vendió
+        response = self.client.post(
+            reverse("sales:make_offer", args=[self.vehicle.id]),
+            {"offered_price": "15000"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            Sale.objects.filter(vehicle=self.vehicle, status="offer_pending").exists()
+        )
 
-    def test_purchase_vehicle_unauthenticated(self):
-        """Verifica que usuarios no autenticados no puedan comprar."""
-        response = self.client.post(reverse('sales:purchase', args=[self.vehicle.id]))
-        self.assertRedirects(response, f'/users/login/?next={reverse("sales:purchase", args=[self.vehicle.id])}')
+    def test_make_offer_unauthenticated(self):
+        response = self.client.post(
+            reverse("sales:make_offer", args=[self.vehicle.id]),
+            {"offered_price": "15000"},
+        )
+        self.assertRedirects(
+            response,
+            f'/users/login/?next={reverse("sales:make_offer", args=[self.vehicle.id])}',
+        )
 
-    def test_purchase_vehicle_already_sold(self):
-        """Verifica que no se pueda comprar un vehículo ya vendido."""
-        self.vehicle.sold = True
-        self.vehicle.save()
+    def test_make_offer_price_too_high(self):
         self.client.force_login(self.buyer)
-        response = self.client.post(reverse('sales:purchase', args=[self.vehicle.id]))
-        self.assertEqual(response.status_code, 404)  # No encontrado
+        response = self.client.post(
+            reverse("sales:make_offer", args=[self.vehicle.id]),
+            {"offered_price": "25000"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            Sale.objects.filter(vehicle=self.vehicle, status="offer_pending").exists()
+        )
+        # Verificar mensaje de error (opcional)
+
+    def test_make_offer_duplicate_pending(self):
+        Sale.objects.create(
+            vehicle=self.vehicle,
+            buyer=self.buyer,
+            seller=self.seller,
+            amount=self.vehicle.price,
+            offered_price=Decimal("15000"),
+            status="offer_pending",
+        )
+        self.client.force_login(self.buyer)
+        response = self.client.post(
+            reverse("sales:make_offer", args=[self.vehicle.id]),
+            {"offered_price": "14000"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            Sale.objects.filter(vehicle=self.vehicle, status="offer_pending").count(), 1
+        )
 
 
-class PurchaseHistoryTest(TestCase):
-    """Pruebas para la vista purchase_history."""
-
+class OfferAcceptRejectTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.brand = Brand.objects.create(name='Toyota')
+        self.brand = Brand.objects.create(name="Toyota")
+        self.admin = User.objects.create_superuser(
+            username="admin", email="admin@test.com", password="adminpass"
+        )
         self.seller = User.objects.create_user(
-            username='seller',
-            email='seller@test.com',
-            password='testpass123',
-            role='admin'
+            username="seller",
+            email="seller@test.com",
+            password="testpass123",
+            role="seller",
         )
-        
         self.buyer = User.objects.create_user(
-            username='buyer',
-            email='buyer@test.com',
-            password='testpass123',
-            role='customer'
+            username="buyer",
+            email="buyer@test.com",
+            password="testpass123",
+            role="customer",
         )
-        
         self.vehicle = Vehicle.objects.create(
             brand=self.brand,
-            model='Corolla',
+            model="Corolla",
             year=2020,
             price=20000.00,
             mileage=15000,
-            transmission='automatic',
-            fuel_type='gasoline',
-            status='used',
+            transmission="automatic",
+            fuel_type="gasoline",
+            status="used",
             created_by=self.seller,
             is_active=True,
             sold=False,
@@ -166,17 +186,33 @@ class PurchaseHistoryTest(TestCase):
             buyer=self.buyer,
             seller=self.seller,
             amount=self.vehicle.price,
-            status='completed'
+            offered_price=Decimal("15000"),
+            status="offer_pending",
         )
 
-    def test_purchase_history_authenticated(self):
-        """Verifica que el historial de compras cargue correctamente."""
-        self.client.force_login(self.buyer)
-        response = self.client.get(reverse('sales:history'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Corolla')
+    def test_accept_offer_admin(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse("sales:accept_offer", args=[self.sale.id]))
+        self.assertEqual(response.status_code, 302)
+        self.sale.refresh_from_db()
+        self.assertEqual(self.sale.status, "offer_accepted")
+        self.vehicle.refresh_from_db()
+        self.assertTrue(self.vehicle.sold)
+        self.assertFalse(self.vehicle.is_active)
 
-    def test_purchase_history_unauthenticated(self):
-        """Verifica que usuarios no autenticados no puedan ver el historial."""
-        response = self.client.get(reverse('sales:history'))
-        self.assertRedirects(response, f'/users/login/?next={reverse("sales:history")}')
+    def test_accept_offer_non_admin(self):
+        self.client.force_login(self.seller)
+        response = self.client.post(reverse("sales:accept_offer", args=[self.sale.id]))
+        self.assertEqual(
+            response.status_code, 302
+        )  # Redirige a login? o 403? Depende de user_passes_test.
+
+    def test_reject_offer_admin(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse("sales:reject_offer", args=[self.sale.id]))
+        self.assertEqual(response.status_code, 302)
+        self.sale.refresh_from_db()
+        self.assertEqual(self.sale.status, "offer_rejected")
+        self.vehicle.refresh_from_db()
+        self.assertFalse(self.vehicle.sold)
+        self.assertTrue(self.vehicle.is_active)

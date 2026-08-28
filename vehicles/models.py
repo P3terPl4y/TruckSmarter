@@ -1,6 +1,7 @@
-from django.contrib.auth import get_user_model
-from django.db import models,transaction
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.validators import FileExtensionValidator
+from django.db import models, transaction
 
 User = get_user_model()
 
@@ -39,7 +40,12 @@ class Vehicle(models.Model):
     fuel_type = models.CharField(max_length=20, choices=FUEL_CHOICES)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="used")
     description = models.TextField(blank=True)
-    main_image = models.ImageField(upload_to="vehicles/", blank=True, null=True)
+    main_image = models.ImageField(
+        upload_to="vehicles/",
+        blank=True,
+        null=True,
+        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "gif"])],
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
@@ -53,11 +59,10 @@ class Vehicle(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='reserved_vehicles'
+        related_name="reserved_vehicles",
     )
     view_count = models.PositiveIntegerField(default=0)
-    
-    
+
     def __str__(self):
         return f"{self.brand.name} {self.model} ({self.year})"
 

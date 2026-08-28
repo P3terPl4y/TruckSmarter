@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #1a3a5c, #2a5a8c); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { padding: 20px; }
+        .offer-details { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .highlight { color: #d45d1a; font-weight: bold; }
+        .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>¡Nueva oferta recibida! 🚗</h2>
+        </div>
+        <div class="content">
+            <p>Hola <strong>{{ vehicle.created_by.get_full_name|default:vehicle.created_by.username }}</strong>,</p>
+            <p>Has recibido una nueva oferta para tu vehículo:</p>
+            
+            <div class="offer-details">
+                <h3>{{ vehicle.brand }} {{ vehicle.model }} ({{ vehicle.year }})</h3>
+                <p><strong>Precio publicado:</strong> ${{ vehicle.price }}</p>
+                <p><strong>Oferta recibida:</strong> <span class="highlight">${{ offered_price }}</span></p>
+                {% if comment %}
+                    <p><strong>Comentario del comprador:</strong> {{ comment }}</p>
+                {% endif %}
+            </div>
+            
+            <h4>👤 Datos del Comprador</h4>
+            <div>
+                <p><strong>Nombre:</strong> {{ buyer.full_name }}</p>
+                <p><strong>Email:</strong> {{ buyer.email }}</p>
+                <p><strong>Teléfono:</strong> {{ buyer.phone }}</p>
+                <p><strong>Dirección:</strong> {{ buyer.address }}</p>
+            </div>
+            
+            <p style="margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                <strong>📝 Próximos pasos:</strong> Gestiona esta oferta desde el panel de administración de TruckSmarter. Puedes aceptarla o rechazarla.
+            </p>
+            
+            <p style="margin-top: 20px;">Gracias por confiar en <strong>TruckSmarter</strong>.</p>
+            
+            <hr>
+            <p style="font-size: 14px; color: #666;">ID de oferta: #{{ sale_id }} | Fecha: {{ sale_date|date:"d/m/Y H:i" }}</p>
+        </div>
+        <div class="footer">
+            <p>© 2026 TruckSmarter - Tu plataforma de confianza para comprar y vender vehículos.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,9 @@
+<h2>Nueva oferta para tu vehículo</h2>
+<p>Hola {{ seller.full_name }},</p>
+<p>El usuario <strong>{{ buyer.full_name }}</strong> ({{ buyer.email }}) ha hecho una oferta por tu vehículo <strong>{{ vehicle.brand }} {{ vehicle.model }}</strong> ({{ vehicle.year }}).</p>
+<p><strong>Precio ofertado:</strong> ${{ offered_price }}</p>
+{% if comment %}
+    <p><strong>Comentario del comprador:</strong> {{ comment }}</p>
+{% endif %}
+<p>Puedes gestionar esta oferta desde el panel de administración.</p>
+<p>Gracias por confiar en TruckSmarter.</p>
