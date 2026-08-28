@@ -7,7 +7,8 @@ from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
 
 from core.mixins import OwnerOrAdminRequiredMixin, SellerRequiredMixin,AdminRequiredMixin
-
+# vehicles/views.py
+from sales.models import Sale  # <-- Agregar esta línea
 from .forms import VehicleForm
 from .models import Vehicle
 from django.shortcuts import redirect
@@ -63,6 +64,13 @@ class VehicleDetailView(TrackVehicleViewMixin,DetailView):
         # Verificar si el usuario puede editar este vehículo
         vehicle = self.get_object()
         user = self.request.user
+        
+        pending_offer = Sale.objects.filter(
+            vehicle=vehicle,
+            status='offer_pending'
+        ).first()
+        context['pending_offer'] = pending_offer
+        
         context["can_edit"] = user.is_authenticated and (
             user.role == "admin" or user.is_superuser or vehicle.created_by == user
         )
@@ -110,7 +118,6 @@ class VehicleDeleteView(LoginRequiredMixin, OwnerOrAdminRequiredMixin, DeleteVie
     success_url = reverse_lazy('vehicles:list')
 
     def delete(self, request, *args, **kwargs):
-        """Soft delete: marcar como inactivo en lugar de eliminar."""
         self.object = self.get_object()
         self.object.is_active = False
         self.object.sold = True  # Opcional

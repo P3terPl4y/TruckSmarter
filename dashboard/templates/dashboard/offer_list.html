@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Ofertas pendientes - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container dashboard-content">
+  <div class="list-header">
+    <h2><i class="fas fa-gavel"></i> Ofertas pendientes</h2>
+  </div>
+
+  <div class="table-responsive">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Vehículo</th>
+          <th>Comprador</th>
+          <th>Precio ofertado</th>
+          <th>Precio publicado</th>
+          <th>Fecha</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for offer in offers %}
+        <tr>
+          <td><strong>{{ offer.vehicle.brand.name }} {{ offer.vehicle.model }}</strong></td>
+          <td>{{ offer.buyer.get_full_name|default:offer.buyer.username }}</td>
+          <td class="price">${{ offer.offered_price }}</td>
+          <td>${{ offer.amount }}</td>
+          <td>{{ offer.created_at|date:"d/m/Y H:i" }}</td>
+          <td>
+            <form method="post" action="{% url 'sales:accept_offer' offer.pk %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn-icon" style="color:#28a745;" title="Aceptar">
+                <i class="fas fa-check"></i>
+              </button>
+            </form>
+            <form method="post" action="{% url 'sales:reject_offer' offer.pk %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn-icon danger" title="Rechazar">
+                <i class="fas fa-times"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted">No hay ofertas pendientes.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dashboard-content {
+    padding: 12vh 1.5rem 2rem;
+    min-height: 100vh;
+    max-width: 80rem;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+  .list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .list-header h2 {
+    font-weight: 300;
+    font-size: 1.8rem;
+    margin: 0;
+  }
+  .list-header h2 i {
+    color: var(--color-accent);
+    margin-right: 0.5rem;
+  }
+  .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-card);
+    backdrop-filter: blur(8px);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .admin-table thead {
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border-color);
+  }
+  .admin-table th {
+    padding: 0.8rem 1rem;
+    text-align: left;
+    font-weight: 400;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .admin-table td {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+  }
+  .admin-table tr:hover {
+    background: var(--bg-card-hover);
+  }
+  .admin-table .price {
+    color: var(--color-accent);
+    font-weight: 500;
+  }
+  .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all var(--transition);
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .btn-icon:hover {
+    background: var(--bg-card-hover);
+    color: var(--color-accent);
+  }
+  .btn-icon.danger:hover {
+    color: #d43737;
+    background: rgba(212,55,55,0.1);
+  }
+</style>
+{% endblock %}

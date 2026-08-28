@@ -6,27 +6,24 @@ from vehicles.models import Vehicle
 
 class Sale(models.Model):
     STATUS_CHOICES = (
-        ("pending", "Pendiente"),
-        ("reserved", "Reservado"), 
-        ("completed", "Completada"),
-        ("cancelled", "Cancelada"),
+        ('offer_pending', 'Oferta pendiente'),
+        ('offer_accepted', 'Oferta aceptada'),
+        ('offer_rejected', 'Oferta rechazada'),
+        ('completed', 'Completada'),
+        ('cancelled', 'Cancelada'),
     )
-    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name="sales")
-    buyer = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="purchases"
-    )
-    seller = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sales"
-    )
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name='sales')
+    buyer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='purchases')
+    seller = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sales')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)  # Precio original del vehículo
+    offered_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)  # Precio ofertado
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='offer_pending')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    # Datos de pago del comprador (opcional)
     buyer_phone = models.CharField(max_length=20, blank=True)
     buyer_email = models.EmailField(blank=True)
     notes = models.TextField(blank=True)
-
+    
     def __str__(self):
         return f"Venta de {self.vehicle} - {self.buyer.username}"
 

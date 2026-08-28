@@ -7,7 +7,58 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# sales/services.py
+def send_offer_notifications(vehicle, buyer, admin_user, sale):
+    # Notificación al comprador
+    send_email(
+        subject=f'Oferta enviada: {vehicle.brand.name} {vehicle.model}',
+        template_name='emails/offer_confirmation.html',
+        context={
+            'vehicle': {'brand': vehicle.brand.name, 'model': vehicle.model, 'year': vehicle.year},
+            'buyer': {'full_name': buyer.get_full_name() or buyer.username, 'email': buyer.email},
+            'offered_price': sale.offered_price,
+            'site_name': 'TruckSmarter',
+        },
+        to=[buyer.email],
+    )
+
+    # Notificación al admin
+    if admin_user:
+        send_email(
+            subject=f'Nueva oferta: {vehicle.brand.name} {vehicle.model}',
+            template_name='emails/admin_offer_notification.html',
+            context={
+                'vehicle': {'brand': vehicle.brand.name, 'model': vehicle.model, 'year': vehicle.year},
+                'buyer': {'full_name': buyer.get_full_name() or buyer.username, 'email': buyer.email},
+                'offered_price': sale.offered_price,
+                'sale_id': sale.id,
+                'site_url': 'https://tudominio.com',
+            },
+            to=[admin_user.email],
+        )
+
+def send_offer_accepted_notification(sale):
+    send_email(
+        subject=f'Oferta aceptada: {sale.vehicle.brand.name} {sale.vehicle.model}',
+        template_name='emails/offer_accepted.html',
+        context={
+            'vehicle': {'brand': sale.vehicle.brand.name, 'model': sale.vehicle.model},
+            'offered_price': sale.offered_price,
+            'site_name': 'TruckSmarter',
+        },
+        to=[sale.buyer.email],
+    )
+
+def send_offer_rejected_notification(sale):
+    send_email(
+        subject=f'Oferta rechazada: {sale.vehicle.brand.name} {sale.vehicle.model}',
+        template_name='emails/offer_rejected.html',
+        context={
+            'vehicle': {'brand': sale.vehicle.brand.name, 'model': sale.vehicle.model},
+            'offered_price': sale.offered_price,
+            'site_name': 'TruckSmarter',
+        },
+        to=[sale.buyer.email],
+    )
 
 def send_reservation_notifications(vehicle, buyer, admin_user, sale):
     """

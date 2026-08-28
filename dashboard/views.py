@@ -7,6 +7,8 @@ from core.mixins import AdminRequiredMixin
 from users.forms import UserAdminForm
 from vehicles.models import Brand
 from vehicles.forms import BrandForm
+# dashboard/views.py
+from sales.models import Sale  # <-- Agregar esta línea
 
 User = get_user_model()
 
@@ -60,3 +62,10 @@ class BrandDeleteView(AdminRequiredMixin, LoginRequiredMixin, DeleteView):
     model = Brand
     template_name = 'dashboard/brand_confirm_delete.html'
     success_url = reverse_lazy('dashboard:brand_list')
+
+class OfferListView(AdminRequiredMixin, LoginRequiredMixin, ListView):
+    model = Sale
+    template_name = 'dashboard/offer_list.html'
+    context_object_name = 'offers'
+    queryset = Sale.objects.filter(status='offer_pending').select_related('vehicle', 'buyer', 'seller')
+    ordering = ['-created_at']

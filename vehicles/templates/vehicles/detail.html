@@ -39,26 +39,34 @@
         <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
           <i class="fas fa-check-circle"></i> Vehículo vendido
         </div>
-      {% elif vehicle.reserved %}
-        {% if user.is_authenticated and user == vehicle.reserved_by %}
-          <!-- El usuario que reservó puede cancelar -->
-          <form method="post" action="{% url 'sales:cancel_reservation' vehicle.pk %}" style="width:100%;">
-            {% csrf_token %}
-            <button type="submit" class="btn-hero" style="background:#d43737; border-color:#d43737; width:100%;">
-              <i class="fas fa-times-circle"></i> Cancelar reserva
-            </button>
-          </form>
+      {% elif pending_offer %}
+        <!-- Hay una oferta pendiente -->
+        {% if pending_offer.buyer == user %}
+          <!-- El usuario que hizo la oferta -->
+          <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
+            <i class="fas fa-clock"></i> Tu oferta de ${{ pending_offer.offered_price }} está en revisión
+          </div>
         {% else %}
           <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
-            <i class="fas fa-clock"></i> Reservado
+            <i class="fas fa-clock"></i> Oferta en revisión
           </div>
         {% endif %}
       {% elif user.is_authenticated and user != vehicle.created_by %}
-        <!-- Botón para reservar -->
-        <form method="post" action="{% url 'sales:reserve' vehicle.pk %}" style="width:100%;">
+        <!-- Formulario para hacer una oferta -->
+        <form method="post" action="{% url 'sales:make_offer' vehicle.pk %}" style="width:100%;">
           {% csrf_token %}
+          <div class="mb-3" style="text-align:left;">
+            <label for="offered_price" class="form-label" style="color:var(--text-secondary);">Tu oferta</label>
+            <div class="input-group">
+              <span class="input-group-text" style="background:var(--bg-body); border-color:var(--border-color); color:var(--text-primary);">$</span>
+              <input type="number" name="offered_price" id="offered_price" 
+                     class="form-control" step="0.01" min="1" max="{{ vehicle.price|add:'-0.01' }}"
+                     placeholder="Menor a ${{ vehicle.price }}" required>
+            </div>
+            <small class="text-muted" style="color:var(--text-muted);">El precio debe ser menor a ${{ vehicle.price }}</small>
+          </div>
           <button type="submit" class="btn-hero" style="width:100%;">
-            <i class="fas fa-calendar-check"></i> Reservar ahora
+            <i class="fas fa-gavel"></i> Hacer oferta
           </button>
         </form>
       {% elif user == vehicle.created_by %}
@@ -66,7 +74,7 @@
           Este vehículo es tuyo. Puedes <a href="{% url 'vehicles:update' vehicle.pk %}" style="color:var(--color-accent);">editarlo</a> o <a href="{% url 'vehicles:delete' vehicle.pk %}" style="color:var(--color-accent);">eliminarlo</a>.
         </p>
       {% else %}
-        <p style="color: var(--text-muted); width:100%;">Inicia sesión para reservar este vehículo.</p>
+        <p style="color: var(--text-muted); width:100%;">Inicia sesión para hacer una oferta.</p>
       {% endif %}
     </div>
 

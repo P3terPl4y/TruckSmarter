@@ -42,7 +42,8 @@ INSTALLED_APPS = [
     "analytics",
     "crispy_forms",     
     "crispy_bootstrap5",
-    'sslserver', 
+    'sslserver',
+    'django_ratelimit' 
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

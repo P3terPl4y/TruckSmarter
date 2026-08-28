@@ -1,0 +1,5 @@
+<h2>Hola {{ user.username }},</h2>
+<p>Gracias por registrarte en TruckSmarter. Para verificar tu email, haz clic en el siguiente enlace:</p>
+<p><a href="{{ site_url }}{% url 'users:verify_email' token %}">Verificar mi email</a></p>
+<p>Este enlace expirará en 24 horas.</p>
+<p>Si no solicitaste este registro, ignora este mensaje.</p>

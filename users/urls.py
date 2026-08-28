@@ -13,4 +13,5 @@ urlpatterns = [
     ),
     path("logout/", views.logout_view, name="logout"),
     path("profile/", views.ProfileView.as_view(), name="profile"),
+    path('verify/<uuid:token>/', views.verify_email, name='verify_email'),
 ]

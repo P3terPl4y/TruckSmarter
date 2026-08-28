@@ -222,11 +222,9 @@ class VehicleUpdateViewTest(TestCase):
         self.assertEqual(self.vehicle.price, 26000.00)
 
     def test_update_vehicle_other_user_forbidden(self):
-        """Verifica que otro usuario NO pueda actualizar el vehículo."""
-        self.client.force_login(self.other_user)
-        response = self.client.get(reverse('vehicles:update', args=[self.vehicle.id]))
-        self.assertEqual(response.status_code, 403)
-
+    self.client.force_login(self.other_user)
+    response = self.client.get(reverse('vehicles:update', args=[self.vehicle.id]))
+    self.assertEqual(response.status_code, 403)
     def test_update_vehicle_admin_allowed(self):
         """Verifica que un administrador pueda actualizar cualquier vehículo."""
         self.client.force_login(self.admin_user)
@@ -284,14 +282,14 @@ class VehicleDeleteViewTest(TestCase):
             sold=False,
         )
 
-    def test_delete_vehicle_owner(self):
-        """Verifica que el propietario pueda eliminar su vehículo (soft delete)."""
+     def test_delete_vehicle_owner(self):
         self.client.force_login(self.owner)
         response = self.client.post(reverse('vehicles:delete', args=[self.vehicle.id]))
         self.assertEqual(response.status_code, 302)
+        # Recargar desde la base de datos (debe existir porque es soft delete)
         self.vehicle.refresh_from_db()
-        self.assertFalse(self.vehicle.is_active)  # Verificar soft delete
-
+        self.assertFalse(self.vehicle.is_active)
+        self.assertTrue(self.vehicle.sold)
     def test_delete_vehicle_other_user_forbidden(self):
         """Verifica que otro usuario NO pueda eliminar el vehículo."""
         self.client.force_login(self.other_user)
