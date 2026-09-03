@@ -60,11 +60,12 @@
   </main>
 
   <!-- ===== FOOTER ===== -->
+ {% if user.is_authenticated and user.role == 'seller' or user.role == 'admin' or user.is_superuser %}
   <div class="section-footer">
     <i class="fas fa-shield-alt"></i> Exclusividad garantizada · 
-    <i class="fas fa-phone-alt"></i> +1 800 555 0199
+    <i class="fas fa-phone-alt"></i> +5351652038  
   </div>
-
+  {% endif %}
   <!-- ===== SCRIPTS ===== -->
   <script src="{% static 'js/main.js' %}"></script>
   <script>(function() {
