@@ -4,6 +4,8 @@ Plataforma Django para publicar vehículos, negociar ofertas, reservar unidades 
 
 Estado verificado el 11/10/2026: **174 pruebas aprobadas con PostgreSQL y Redis**, incluidas **25 de seguridad**, con **96% de cobertura de líneas y ramas redondeada**. Estos resultados corresponden al código local; no certifican un despliegue de producción.
 
+Sitio desplegado: **[catalog-macmanix.duohnson.com](https://catalog-macmanix.duohnson.com/)**, mediante Cloudflared hacia el puerto 8800.
+
 ## Documentación
 
 | Guía | Contenido |

@@ -7,10 +7,10 @@ La aplicación se ejecuta con Gunicorn en **127.0.0.1:8800**, DEBUG=False y las 
 Se reutilizó la ruta ya existente en `/etc/cloudflared/config.yml`:
 
 ```text
-catalog.macmanix.duohnson.com → http://localhost:8800
+catalog-macmanix.duohnson.com → http://localhost:8800
 ```
 
-No se modificó el túnel ni las rutas de otras aplicaciones. Durante la comprobación el hostname no resolvía por DNS, de modo que **no se confirmó acceso público HTTPS**. El origen sí respondió 200 en catálogo, login y logo usando las cabeceras del peer de túnel confiable. El paso pendiente es comprobar/publicar el registro DNS de ese hostname en Cloudflare y la cobertura de su certificado; la ruta local del túnel por sí sola no prueba que exista DNS público.
+La ruta del túnel y el DNS se actualizaron al hostname de un solo nivel. El nombre anterior `catalog.macmanix.duohnson.com` presentaba un fallo de negociación TLS en Cloudflare; el certificado Universal habitual cubre el dominio y un nivel de subdominio, no dos ([limitación documentada por Cloudflare](https://developers.cloudflare.com/ssl/edge-certificates/universal-ssl/limitations/)). Durante el diagnóstico también se observó una respuesta DNS local incompleta (solo IPv6), mientras los resolvedores públicos devolvían IPv4 e IPv6. Las demás rutas del túnel se conservaron.
 
 El origen rechaza peticiones que no vengan del peer confiable con las cabeceras válidas; abrir directamente `http://localhost:8800` en un navegador no representa la entrada pública prevista. No desactivar esa protección para resolver un problema DNS.
 
@@ -64,4 +64,10 @@ El correo está configurado con backend de consola porque no se proporcionaron c
 - Origen: catálogo/login/logo 200, CSP presente, cookie CSRF Secure/HttpOnly y bytes del logo iguales al original.
 - Vista previa de HTML renderizado comprobada en Firefox; no constituye una prueba de acceso por Cloudflare. Capturas en `.test-artifacts`, fuera de Git.
 - Suite completa repetida con PostgreSQL/Redis de pruebas: **174 aprobadas**, sin omisiones ni checks silenciados. Evidencia local en `.test-artifacts/logo-postgres.txt`.
-- DNS público: pendiente; no se ha declarado el dominio accesible.
+- Nuevo hostname verificado públicamente por HTTPS: catálogo, logo y login **200**, con agentes curl y Firefox, sin desactivar verificación TLS. `check --deploy --fail-level WARNING` siguió sin hallazgos.
+
+## Corrección del dominio
+
+URL activa: **https://catalog-macmanix.duohnson.com/**. Django usa este hostname en ALLOWED_HOSTS, SITE_URL y CSRF_TRUSTED_ORIGINS del `.env` privado. Se reinició únicamente macmanix-web para recoger esa configuración. La regla efectiva de Cloudflared para el nuevo nombre se validó y apunta a `http://localhost:8800`.
+
+El nombre anterior no debe usarse: no se ha instalado un certificado adicional para él ni una redirección HTTPS desde ese hostname. No se desactivó TLS ni la validación de origen/CSRF para resolver el fallo. Una petición con el agente Python predeterminado recibió un 403 de Cloudflare; las comprobaciones con agentes curl/Firefox y las entradas reales de navegador alcanzaron la aplicación y devolvieron 200.
