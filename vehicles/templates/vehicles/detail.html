@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static l10n %}
 
 {% block title %}{{ vehicle.brand.name }} {{ vehicle.model }}{% endblock %}
 
@@ -10,7 +10,7 @@
     {% if vehicle.main_image %}
       <img src="{{ vehicle.main_image.url }}" alt="{{ vehicle }}" />
     {% else %}
-      <img src="{% static 'img/no-image.png' %}" alt="Sin imagen" />
+      <img src="{% static 'img/no-image.svg' %}" alt="Sin imagen" />
     {% endif %}
   </div>
 
@@ -39,12 +39,14 @@
     <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
       <i class="fas fa-check-circle"></i> Vehículo vendido
     </div>
+  {% elif not vehicle.is_active %}
+    <p>Este anuncio ya no está disponible.</p>
   {% elif user_has_pending_offer %}
     <!-- El usuario actual tiene una oferta pendiente -->
     <div style="background: rgba(212,168,55,0.15); border:1px solid var(--color-accent); padding:1rem; border-radius:12px; text-align:center; color:var(--color-accent); font-weight:600; width:100%;">
       <i class="fas fa-clock"></i> Tu oferta de ${{ user_pending_offer.offered_price }} está en revisión
     </div>
-  {% elif user.is_authenticated and user != vehicle.created_by %}
+  {% elif can_offer %}
     <!-- Formulario para hacer una oferta (solo si el usuario no tiene oferta pendiente) -->
     <form method="post" action="{% url 'sales:make_offer' vehicle.pk %}" style="width:100%;">
       {% csrf_token %}
@@ -56,13 +58,13 @@
           </label>
           <div class="input-group" style="display:flex; align-items:center; background:var(--bg-body); border:1px solid var(--border-color); border-radius:var(--radius-sm); transition:border-color var(--transition), box-shadow var(--transition);">
             <span class="input-group-text" style="background:transparent; border:none; color:var(--text-muted); padding:0.6rem 0.8rem; font-size:1.1rem;">$</span>
-            <input type="number" name="offered_price" id="offered_price" 
-                   class="form-control" step="0.01" min="1" max="{{ vehicle.price|add:'-0.01' }}"
+            <input type="number" name="offered_price" id="offered_price"
+                   class="form-control" step="0.01" min="0.01" max="{{ max_offer|unlocalize }}"
                    placeholder="Ingresa tu oferta" required
                    style="background:transparent; border:none; padding:0.6rem 0.8rem 0.6rem 0; color:var(--text-primary); font-size:1.1rem; width:100%; outline:none;">
           </div>
           <small class="text-muted" style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:0.3rem;">
-            
+
           </small>
         </div>
 
@@ -71,7 +73,7 @@
           <label for="offer_comment" class="form-label" style="color:var(--text-secondary); font-weight:400; font-size:0.9rem; display:block; margin-bottom:0.3rem;">
             <i class="fas fa-comment" style="color:var(--color-accent); margin-right:0.3rem;"></i> Comentario
           </label>
-          <textarea required name="offer_comment" id="offer_comment" 
+          <textarea name="offer_comment" id="offer_comment"
                     class="form-control" rows="3" maxlength="650"
                     placeholder="Agrega un comentario a tu oferta (máx. 650 caracteres)"
                     style="background:var(--bg-body); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:0.6rem 0.8rem; color:var(--text-primary); font-family:var(--font-sans); font-size:0.95rem; width:100%; resize:vertical; transition:border-color var(--transition), box-shadow var(--transition);"></textarea>
@@ -85,15 +87,28 @@
         </button>
       </div>
     </form>
-  {% elif user == vehicle.created_by %}
+  {% elif can_edit %}
     <p style="color: var(--text-muted); width:100%;">
       Este vehículo es tuyo. Puedes <a href="{% url 'vehicles:update' vehicle.pk %}" style="color:var(--color-accent);">editarlo</a> o <a href="{% url 'vehicles:delete' vehicle.pk %}" style="color:var(--color-accent);">eliminarlo</a>.
     </p>
   {% else %}
-    <p style="color: var(--text-muted); width:100%;">Inicia sesión para hacer una oferta.</p>
+    <p style="color: var(--text-muted); width:100%;">{% if not user.is_authenticated %}Inicia sesión para hacer una oferta.{% else %}Este vehículo no admite nuevas ofertas en este momento.{% endif %}</p>
   {% endif %}
 </div>
 
+    {% if vehicle.reserved and vehicle.reserved_by == user %}
+      <form method="post" action="{% url 'sales:cancel_reservation' vehicle.pk %}">
+        {% csrf_token %}<button type="submit" class="btn-outline-gold">Cancelar reserva</button>
+      </form>
+    {% elif can_offer or user_has_pending_offer and not vehicle.reserved and vehicle.is_active and not vehicle.sold %}
+      <form method="post" action="{% url 'sales:reserve' vehicle.pk %}">
+        {% csrf_token %}<button type="submit" class="btn-outline-gold">Reservar vehículo</button>
+      </form>
+    {% endif %}
+
+    {% for photo in vehicle.images.all %}
+      <img src="{{ photo.image.url }}" alt="{{ vehicle }} — imagen {{ forloop.counter }}" loading="lazy" style="max-width:100%">
+    {% endfor %}
     <!-- Tarjeta del vendedor (siempre visible) -->
     <div class="seller-card">
       <h5><i class="fas fa-user"></i> Vendedor</h5>
@@ -107,7 +122,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
   // Contador de caracteres para el campo de comentario
   document.addEventListener('DOMContentLoaded', function() {
     const textarea = document.getElementById('offer_comment');

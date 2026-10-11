@@ -1,0 +1,11 @@
+# Ejemplo para túnel administrado localmente; adaptar UUID, ruta y dominio.
+# Si el túnel se administra desde Cloudflare, configurar allí la ruta equivalente.
+tunnel: TU-UUID-DE-TUNEL
+credentials-file: /ruta/privada/TU-UUID-DE-TUNEL.json
+
+ingress:
+  - hostname: autos.example.com
+    service: http://127.0.0.1:8000
+    originRequest:
+      connectTimeout: 5s
+  - service: http_status:404

@@ -15,43 +15,47 @@ def send_offer_notifications(vehicle, buyer, seller, sale):
     """
     # Datos del vehículo
     vehicle_details = {
-        'brand': vehicle.brand.name,
-        'model': vehicle.model,
-        'year': vehicle.year,
-        'price': vehicle.price,
+        "brand": vehicle.brand.name,
+        "model": vehicle.model,
+        "year": vehicle.year,
+        "price": vehicle.price,
     }
 
     # Datos del comprador
     buyer_details = {
-        'full_name': buyer.get_full_name() or buyer.username,
-        'email': buyer.email,
+        "full_name": buyer.get_full_name() or buyer.username,
+        "email": buyer.email,
     }
 
     # Datos del vendedor
     seller_details = {
-        'full_name': seller.get_full_name() or seller.username,
-        'email': seller.email,
-        'phone': seller.profile.phone if hasattr(seller, 'profile') else 'No especificado',
-        'address': seller.profile.address if hasattr(seller, 'profile') else 'No especificada',
+        "full_name": seller.get_full_name() or seller.username,
+        "email": seller.email,
+        "phone": (
+            seller.profile.phone if hasattr(seller, "profile") else "No especificado"
+        ),
+        "address": (
+            seller.profile.address if hasattr(seller, "profile") else "No especificada"
+        ),
     }
 
     # Contexto para el email del comprador
     buyer_context = {
-        'vehicle': vehicle_details,
-        'buyer': buyer_details,
-        'seller': seller_details,
-        'offered_price': sale.offered_price,
-        'comment': sale.notes,
-        'site_name': 'TruckSmarter',
+        "vehicle": vehicle_details,
+        "buyer": buyer_details,
+        "seller": seller_details,
+        "offered_price": sale.offered_price,
+        "comment": sale.notes,
+        "site_name": "TruckSmarter",
     }
 
     # Contexto para el email del vendedor
     seller_context = {
-        'vehicle': vehicle_details,
-        'buyer': buyer_details,
-        'offered_price': sale.offered_price,
-        'comment': sale.notes,
-        'site_name': 'TruckSmarter',
+        "vehicle": vehicle_details,
+        "buyer": buyer_details,
+        "offered_price": sale.offered_price,
+        "comment": sale.notes,
+        "site_name": "TruckSmarter",
     }
 
     # 1. Email al comprador (confirmación)
@@ -69,7 +73,8 @@ def send_offer_notifications(vehicle, buyer, seller, sale):
         context=seller_context,
         to=[seller.email],
     )
-    
+
+
 def send_offer_accepted_notification(sale):
     send_email(
         subject=f"Oferta aceptada: {sale.vehicle.brand.name} {sale.vehicle.model}",
@@ -78,6 +83,7 @@ def send_offer_accepted_notification(sale):
             "vehicle": {"brand": sale.vehicle.brand.name, "model": sale.vehicle.model},
             "offered_price": sale.offered_price,
             "site_name": "TruckSmarter",
+            "buyer": {"full_name": sale.buyer.get_full_name() or sale.buyer.username},
         },
         to=[sale.buyer.email],
     )
@@ -85,12 +91,13 @@ def send_offer_accepted_notification(sale):
 
 def send_offer_rejected_notification(sale):
     send_email(
-        subject=f"Oferta rechazada: {sale.vehicle.brand.name} {sale.vehicle.model}",
+        subject=f"Oferta cerrada: {sale.vehicle.brand.name} {sale.vehicle.model}",
         template_name="emails/offer_rejected.html",
         context={
             "vehicle": {"brand": sale.vehicle.brand.name, "model": sale.vehicle.model},
             "offered_price": sale.offered_price,
             "site_name": "TruckSmarter",
+            "buyer": {"full_name": sale.buyer.get_full_name() or sale.buyer.username},
         },
         to=[sale.buyer.email],
     )
@@ -128,7 +135,7 @@ def send_reservation_notifications(vehicle, buyer, admin_user, sale):
         "sale_amount": sale.amount,
         "sale_date": sale.created_at,
         "site_name": "TruckSmarter",
-        "site_url": "https://tudominio.com",  # Cambiar por tu dominio
+        "site_url": settings.SITE_URL.rstrip("/"),
     }
     # 1. Email para el administrador (notificación de nueva reserva)
     if admin_user:
@@ -185,7 +192,7 @@ def send_cancellation_notification(vehicle, user):
             "email": user.email,
         },
         "site_name": "TruckSmarter",
-        "site_url": "https://tudominio.com",
+        "site_url": settings.SITE_URL.rstrip("/"),
     }
     send_email(
         subject=f"Reserva cancelada: {vehicle.brand.name} {vehicle.model}",
@@ -208,7 +215,7 @@ def send_admin_cancellation_notification(vehicle, user, admin_user):
             "email": user.email,
         },
         "site_name": "TruckSmarter",
-        "site_url": "https://tudominio.com",
+        "site_url": settings.SITE_URL.rstrip("/"),
     }
     send_email(
         subject=f"Reserva cancelada por {user.get_full_name() or user.username}: {vehicle.brand.name} {vehicle.model}",

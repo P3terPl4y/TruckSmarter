@@ -1,60 +1,69 @@
+import logging
 from datetime import timedelta
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 
+from vehicles.models import Vehicle
 from .models import VehicleView
 
-
-def has_recent_view(vehicle, request, hours=24):
-    """
-    Retorna True si ya existe una vista para este vehículo
-    con la misma sesión o usuario en las últimas 'hours' horas.
-    """
-    now = timezone.now()
-    since = now - timedelta(hours=hours)
-
-    # Construir filtro base
-    filter_kwargs = {
-        "vehicle": vehicle,
-        "viewed_at__gte": since,
-    }
-
-    # Si el usuario está autenticado, usamos el usuario
-    if request.user.is_authenticated:
-        filter_kwargs["user"] = request.user
-    # Si no, usamos la session_key
-    elif request.session.session_key:
-        filter_kwargs["session_key"] = request.session.session_key
-    else:
-        # Si no hay ni usuario ni sesión, no podemos evitar duplicados
-        return False
-
-    return VehicleView.objects.filter(**filter_kwargs).exists()
-
-
-VIEW_EXPIRY_SECONDS = getattr(settings, "VIEW_EXPIRY_SECONDS", 86400)  # 24h por defecto
+logger = logging.getLogger(__name__)
 
 
 def get_view_cache_key(vehicle_id, request):
-    """Genera una clave única para cachear la vista de un vehículo por usuario/sesión."""
     if request.user.is_authenticated:
-        identifier = f"user_{request.user.id}"
-    elif request.session.session_key:
-        identifier = f"session_{request.session.session_key}"
+        identifier = f"user_{request.user.pk}"
     else:
-        identifier = f"ip_{request.META.get('REMOTE_ADDR', '0.0.0.0')}"
+        if not request.session.session_key:
+            request.session.create()
+        identifier = f"session_{request.session.session_key}"
     return f"vehicle_view_{vehicle_id}_{identifier}"
 
 
 def has_recent_view(vehicle_id, request):
-    """Retorna True si ya existe un registro en cache para este vehículo/usuario."""
-    key = get_view_cache_key(vehicle_id, request)
-    return cache.get(key) is not None
+    try:
+        return cache.get(get_view_cache_key(vehicle_id, request)) is not None
+    except Exception:
+        logger.warning("Caché de visitas no disponible", exc_info=True)
+        return False
 
 
 def mark_view_as_seen(vehicle_id, request):
-    """Marca en cache que este usuario ha visto el vehículo."""
-    key = get_view_cache_key(vehicle_id, request)
-    cache.set(key, True, timeout=VIEW_EXPIRY_SECONDS)
+    try:
+        cache.set(
+            get_view_cache_key(vehicle_id, request),
+            True,
+            timeout=settings.VIEW_EXPIRY_SECONDS,
+        )
+    except Exception:
+        logger.warning("No se pudo guardar la visita en caché", exc_info=True)
+
+
+def record_vehicle_view(vehicle_id, request):
+    if has_recent_view(vehicle_id, request):
+        return
+    identity = (
+        {"user_id": request.user.pk}
+        if request.user.is_authenticated
+        else {"user__isnull": True, "session_key": request.session.session_key}
+    )
+    since = timezone.now() - timedelta(seconds=settings.VIEW_EXPIRY_SECONDS)
+    with transaction.atomic():
+        vehicle = Vehicle.objects.select_for_update().get(pk=vehicle_id)
+        if not VehicleView.objects.filter(
+            vehicle=vehicle, viewed_at__gte=since, **identity
+        ).exists():
+            VehicleView.objects.create(
+                vehicle=vehicle,
+                user=request.user if request.user.is_authenticated else None,
+                session_key=(
+                    None
+                    if request.user.is_authenticated
+                    else request.session.session_key
+                ),
+            )
+            Vehicle.objects.filter(pk=vehicle_id).update(view_count=F("view_count") + 1)
+        transaction.on_commit(lambda: mark_view_as_seen(vehicle_id, request))

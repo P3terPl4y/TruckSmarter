@@ -1,3 +1,7 @@
+{% extends 'base.html' %}
+{% block title %}Ofertas pendientes{% endblock %}
+{% block content %}
+<h2>Ofertas pendientes</h2>
 <table class="admin-table">
     <thead>
         <tr>
@@ -20,7 +24,12 @@
             <td>{{ offer.notes|truncatechars:50|default:"Sin comentario" }}</td>   <!-- <-- Mostrar comentario -->
             <td>{{ offer.created_at|date:"d/m/Y H:i" }}</td>
             <td>
-                <!-- botones de aceptar/rechazar -->
+                <form method="post" action="{% url 'sales:accept_offer' offer.pk %}" style="display:inline">
+                    {% csrf_token %}<button type="submit" class="btn-outline-gold">Aceptar</button>
+                </form>
+                <form method="post" action="{% url 'sales:reject_offer' offer.pk %}" style="display:inline">
+                    {% csrf_token %}<button type="submit" class="btn-outline-gold">Rechazar</button>
+                </form>
             </td>
         </tr>
         {% empty %}
@@ -28,3 +37,6 @@
         {% endfor %}
     </tbody>
 </table>
+
+{% include 'includes/pagination.html' %}
+{% endblock %}

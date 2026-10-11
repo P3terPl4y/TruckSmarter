@@ -1,20 +1,15 @@
-import re
 import dns.resolver
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+
 
 def validate_email_domain(value):
-    if '@' not in value:
-        raise ValidationError("Correo electrónico inválido.")
-    domain = value.split('@')[1]
-    if '.' not in domain:
-        raise ValidationError("El dominio debe tener un punto (ej: gmail.com)")
-    
-    # Solo hacer verificación DNS si no estamos en DEBUG (producción)
-    if not settings.DEBUG:
+    validate_email(value)
+    if getattr(settings, "EMAIL_VALIDATE_DNS", not settings.DEBUG):
         try:
-            dns.resolver.resolve(domain, 'MX', lifetime=2)  # timeout 2 segundos
-        except Exception:
-            # Si falla la resolución DNS, lanzar error solo en producción
-            raise ValidationError("El dominio del correo electrónico no es válido o no tiene servidores de correo.")
-    # En desarrollo, omitimos la verificación DNS
+            dns.resolver.resolve(value.rsplit("@", 1)[1], "MX", lifetime=2)
+        except dns.exception.DNSException as exc:
+            raise ValidationError(
+                "El dominio del correo no tiene servidores de correo disponibles."
+            ) from exc

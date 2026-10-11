@@ -1,26 +1,47 @@
-version: '3.8'
-
 services:
   web:
-    build: .
+    build:
+      context: .
+      dockerfile: dockerfile
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     env_file:
       - .env
+    environment:
+      DB_HOST: db
+      DB_NAME: ${DB_NAME:-trucksmarter}
+      DB_USER: ${DB_USER:-trucksmarter}
+      DB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD in .env}
+      REDIS_URL: redis://redis:6379/1
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - ./media:/app/media
-      - ./staticfiles:/app/staticfiles
 
   db:
     image: postgres:15
     environment:
-      POSTGRES_DB: trucksmarter
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: ${DB_NAME:-trucksmarter}
+      POSTGRES_USER: ${DB_USER:-trucksmarter}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   postgres_data:

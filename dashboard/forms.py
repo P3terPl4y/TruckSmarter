@@ -1,12 +1,6 @@
-# vehicles/forms.py
-from .models import Brand
+"""Administrative forms live in users/vehicles and are shared by both panels."""
 
+from users.forms import UserAdminCreationForm, UserAdminForm
+from vehicles.forms import BrandForm
 
-class BrandForm(forms.ModelForm):
-    class Meta:
-        model = Brand
-        fields = ["name", "logo"]
-
-
-class DashboardHomeView(AdminRequiredMixin, LoginRequiredMixin, TemplateView):
-    template_name = "dashboard/home.html"
+__all__ = ["UserAdminCreationForm", "UserAdminForm", "BrandForm"]

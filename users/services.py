@@ -12,7 +12,7 @@ def send_verification_email(user, token):
         {
             "user": user,
             "token": token.token,
-            "site_url": "http://localhost:8000",  # Cambiar en producción
+            "site_url": settings.SITE_URL.rstrip("/"),
         },
     )
     send_mail(
@@ -33,9 +33,12 @@ def verify_email_api(email):
     if not api_key:
         # Si no hay API key, omitimos la verificación (no bloquear)
         return True
-    url = f"https://api.hunter.io/v2/email-verifier?email={email}&api_key={api_key}"
+    url = "https://api.hunter.io/v2/email-verifier"
     try:
-        response = requests.get(url, timeout=5)
+        response = requests.get(
+            url, params={"email": email, "api_key": api_key}, timeout=5
+        )
+        response.raise_for_status()
         data = response.json()
         if data.get("data", {}).get("status") == "valid":
             return True

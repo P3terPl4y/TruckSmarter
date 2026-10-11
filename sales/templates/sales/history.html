@@ -18,7 +18,8 @@
             </span>
           </div>
           <div class="history-body">
-            <p><i class="fas fa-tag"></i> <strong>Precio:</strong> ${{ sale.amount }}</p>
+            <p><i class="fas fa-tag"></i> <strong>Precio publicado:</strong> ${{ sale.amount }}</p>
+            {% if sale.offered_price %}<p><i class="fas fa-tag"></i> <strong>Oferta:</strong> ${{ sale.offered_price }}</p>{% endif %}
             <p><i class="fas fa-user"></i> <strong>Vendedor:</strong> {{ sale.seller.get_full_name|default:sale.seller.username }}</p>
             <p><i class="fas fa-calendar-alt"></i> <strong>Fecha:</strong> {{ sale.created_at|date:"d/m/Y H:i" }}</p>
           </div>
@@ -29,6 +30,7 @@
     <p class="text-muted text-center">No has realizado compras aún.</p>
   {% endif %}
 </div>
+{% include 'includes/pagination.html' %}
 {% endblock %}
 
 {% block extra_css %}

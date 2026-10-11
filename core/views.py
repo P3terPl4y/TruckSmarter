@@ -1,3 +1,1 @@
-from django.shortcuts import render
-
-# Create your views here.
+"""Shared functionality is provided by core.permissions and core.mixins."""

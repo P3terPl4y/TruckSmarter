@@ -1,4 +1,7 @@
 # Python
+.venv/
+.coverage*
+htmlcov/
 __pycache__/
 *.py[cod]
 *.so
@@ -36,3 +39,5 @@ Thumbs.db
 vehicles/img.ico
 *.pyc
 __pycache__/
+
+.test-artifacts/

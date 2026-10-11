@@ -203,9 +203,7 @@ class OfferAcceptRejectTest(TestCase):
     def test_accept_offer_non_admin(self):
         self.client.force_login(self.seller)
         response = self.client.post(reverse("sales:accept_offer", args=[self.sale.id]))
-        self.assertEqual(
-            response.status_code, 302
-        )  # Redirige a login? o 403? Depende de user_passes_test.
+        self.assertEqual(response.status_code, 403)
 
     def test_reject_offer_admin(self):
         self.client.force_login(self.admin)

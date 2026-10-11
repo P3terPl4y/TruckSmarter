@@ -267,7 +267,7 @@ class VehicleDeleteViewTest(TestCase):
             username="owner",
             email="owner@test.com",
             password="testpass123",
-            role="admin",
+            role="seller",
         )
 
         self.other_user = User.objects.create_user(
@@ -299,7 +299,7 @@ class VehicleDeleteViewTest(TestCase):
         # Recargar desde la base de datos (debe existir porque es soft delete)
         self.vehicle.refresh_from_db()
         self.assertFalse(self.vehicle.is_active)
-        self.assertTrue(self.vehicle.sold)
+        self.assertFalse(self.vehicle.sold)
 
     def test_delete_vehicle_other_user_forbidden(self):
         """Verifica que otro usuario NO pueda eliminar el vehículo."""

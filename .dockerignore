@@ -1,0 +1,12 @@
+.git
+.venv
+.env
+.env.*
+__pycache__
+*.pyc
+.coverage*
+htmlcov
+logs.txt
+proyecto_completo.txt
+staticfiles
+.test-artifacts

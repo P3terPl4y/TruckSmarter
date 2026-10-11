@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     "analytics",
     "crispy_forms",
     "crispy_bootstrap5",
-    "sslserver",
     "django_ratelimit",
 ]
 MIDDLEWARE = [
@@ -76,8 +75,12 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 LOGIN_REDIRECT_URL = "vehicles:list"
 LOGIN_URL = "/users/login/"
-LOGIN_REDIRECT_URL = "vehicles:list"  # por defecto
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    },
+}
 # Database
 DATABASES = {
     "default": {
@@ -141,7 +144,6 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_HSTS_SECONDS = 31536000  # 1 año
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
@@ -173,15 +175,78 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",
+        "LOCATION": env("REDIS_URL", default="redis://127.0.0.1:6379/1"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
     }
 }
 
-CSRF_TRUSTED_ORIGINS = ["https://mariana-flagless-inaudibly.ngrok-free.dev"]
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+SITE_URL = env("SITE_URL", default="http://localhost:8000")
+EMAIL_VERIFICATION_API_KEY = env("EMAIL_VERIFICATION_API_KEY", default="")
+EMAIL_VALIDATE_DNS = env.bool("EMAIL_VALIDATE_DNS", default=not DEBUG)
+MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024
 
 
 # Tiempo de expiración para evitar vistas duplicadas (en segundos)
 VIEW_EXPIRY_SECONDS = 86400  # 24 horas
+
+# Browser boundaries. JavaScript obtains CSRF tokens from rendered forms.
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Strict"
+SESSION_COOKIE_AGE = 3600
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
+PASSWORD_HASHERS = ["django.contrib.auth.hashers.PBKDF2PasswordHasher"]
+INSTALLED_APPS += ["corsheaders"]
+MIDDLEWARE.insert(1, "django.middleware.csp.ContentSecurityPolicyMiddleware")
+MIDDLEWARE.insert(2, "core.security.RequestGuardMiddleware")
+MIDDLEWARE.insert(3, "corsheaders.middleware.CorsMiddleware")
+TEMPLATES[0]["OPTIONS"]["context_processors"].append(
+    "django.template.context_processors.csp"
+)
+SECURE_CSP = {
+    "default-src": ["'self'"],
+    "script-src": ["'self'", "<CSP_NONCE_SENTINEL>"],
+    "style-src": [
+        "'self'",
+        "'unsafe-inline'",
+        "https://fonts.googleapis.com",
+        "https://cdnjs.cloudflare.com",
+    ],
+    "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
+    "img-src": ["'self'", "data:"],
+    "object-src": ["'none'"],
+    "base-uri": ["'self'"],
+    "frame-ancestors": ["'none'"],
+    "form-action": ["'self'"],
+}
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
+CORS_ALLOW_CREDENTIALS = False
+CORS_URLS_REGEX = r"^/users/api/.*$"
+REQUEST_GUARD_ENABLED = True
+REQUESTS_PER_MINUTE = env.int("REQUESTS_PER_MINUTE", default=120)
+WRITES_PER_MINUTE = env.int("WRITES_PER_MINUTE", default=30)
+MAX_REQUEST_BYTES = 6 * 1024 * 1024
+MAX_QUERY_LENGTH = 4096
+DATA_UPLOAD_MAX_MEMORY_SIZE = 256 * 1024
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 100
+DATA_UPLOAD_MAX_NUMBER_FILES = 5
+FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
+CACHES["default"]["OPTIONS"].update(SOCKET_CONNECT_TIMEOUT=2, SOCKET_TIMEOUT=2)
+JWT_SIGNING_KEY = env("JWT_SIGNING_KEY", default="")
+JWT_ISSUER = "trucksmarter"
+JWT_AUDIENCE = "trucksmarter-api"
+JWT_TTL_SECONDS = 300
+
+# Enable only when the origin is private and accessible exclusively by cloudflared.
+CLOUDFLARED_ENABLED = env.bool("CLOUDFLARED_ENABLED", default=False)
+CLOUDFLARED_TRUSTED_PEERS = env.list("CLOUDFLARED_TRUSTED_PEERS", default=[])
+MIDDLEWARE.insert(0, "core.security.TrustedCloudflareMiddleware")

@@ -138,7 +138,7 @@
       </div>
 
       <!-- Mis vehículos (solo administradores) -->
-      {% if user.role == 'admin' %}
+      {% if user.role == 'admin' or user.role == 'seller' or user.is_superuser %}
       <div class="info-card">
         <div class="card-header-custom">
           <div class="header-actions">
@@ -680,7 +680,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
   document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('profile-form');
     const submitBtn = document.getElementById('profile-submit');
