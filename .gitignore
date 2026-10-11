@@ -41,3 +41,5 @@ vehicles/img.ico
 __pycache__/
 
 .test-artifacts/
+
+.runtime/

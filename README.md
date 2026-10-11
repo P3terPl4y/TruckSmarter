@@ -12,6 +12,7 @@ Estado verificado el 11/10/2026: **174 pruebas aprobadas con PostgreSQL y Redis*
 | [Aplicaciones y negocio](docs/APLICACIONES.md) | Responsabilidades, permisos y flujos de las seis apps |
 | [Rutas y API](docs/API.md) | Endpoints HTML, JWT, contratos y errores |
 | [Configuración](docs/CONFIGURACION.md) | Variables de entorno y límites configurados en código |
+| [Despliegue actual en 8800](docs/DESPLIEGUE_8800.md) | Servicios Macmanix, logo, estado DNS y mantenimiento |
 | [Operación y Cloudflared](docs/OPERACION.md) | Instalación, Docker, despliegue, respaldos y diagnóstico |
 | [Pruebas](docs/PRUEBAS.md) | Suite rápida, PostgreSQL/Redis y cobertura |
 | [Seguridad](docs/SEGURIDAD.md) | Cookies, CSRF, CORS, CSP, JWT y protección contra abuso |

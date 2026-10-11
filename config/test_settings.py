@@ -45,3 +45,6 @@ if os.environ.get("TEST_REDIS_URL"):
     SILENCED_SYSTEM_CHECKS = []
 REQUEST_GUARD_ENABLED = False
 JWT_SIGNING_KEY = "test-only-jwt-signing-key-at-least-32-bytes"
+
+# The deployment .env must never enable tunnel enforcement in isolated tests.
+CLOUDFLARED_ENABLED = False

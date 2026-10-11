@@ -1,0 +1,18 @@
+[Unit]
+Description=Macmanix Django on port 8800
+Requires=macmanix-postgresql.service macmanix-redis.service
+After=macmanix-postgresql.service macmanix-redis.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/peter/TruckSmarter
+Environment=DJANGO_SETTINGS_MODULE=config.settings
+Environment=TMPDIR=/home/peter/TruckSmarter/.runtime/tmp
+ExecStart=/home/peter/TruckSmarter/.venv/bin/gunicorn config.wsgi:application --bind 127.0.0.1:8800 --forwarded-allow-ips= --workers 2 --timeout 30 --worker-tmp-dir /home/peter/TruckSmarter/.runtime/tmp --control-socket /home/peter/TruckSmarter/.runtime/gunicorn.ctl --access-logfile /home/peter/TruckSmarter/.runtime/access.log --error-logfile /home/peter/TruckSmarter/.runtime/web.log
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=3
+UMask=0077
+
+[Install]
+WantedBy=default.target

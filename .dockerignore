@@ -10,3 +10,5 @@ logs.txt
 proyecto_completo.txt
 staticfiles
 .test-artifacts
+
+.runtime/

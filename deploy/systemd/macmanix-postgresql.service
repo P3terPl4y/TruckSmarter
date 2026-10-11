@@ -1,0 +1,15 @@
+[Unit]
+Description=Macmanix dedicated PostgreSQL
+
+[Service]
+Type=simple
+WorkingDirectory=/home/peter/TruckSmarter
+ExecStart=/usr/lib/postgresql/18/bin/postgres -D /home/peter/TruckSmarter/.runtime/postgres -h 127.0.0.1 -p 55441 -k /home/peter/TruckSmarter/.runtime/socket
+ExecStop=/usr/lib/postgresql/18/bin/pg_ctl -D /home/peter/TruckSmarter/.runtime/postgres -m fast -w stop
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=60
+UMask=0077
+
+[Install]
+WantedBy=default.target

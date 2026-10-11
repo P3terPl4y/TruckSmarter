@@ -59,7 +59,7 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
   min-height: 100vh;
-  padding-top: 12vh;
+  padding-top: 108px;
 }
 
 /* Fondo con patrón de carbono */
@@ -127,9 +127,25 @@ body.dark-mode .navbar {
   gap: 0.6rem;
   text-transform: uppercase;
 }
-.navbar-brand i {
-  color: var(--color-accent);
-  font-size: 1.6rem;
+.navbar-brand {
+  text-decoration: none;
+  flex-shrink: 0;
+  gap: 0.9rem;
+}
+.navbar-logo {
+  display: block;
+  width: 96px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #fff;
+  flex-shrink: 0;
+}
+.navbar-tagline {
+  max-width: 26ch;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
 }
 .navbar-links {
   display: flex;
@@ -777,4 +793,16 @@ body.dark-mode .hero img {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Preserve the brand at the upper left when navigation wraps. */
+@media (max-width: 1024px) {
+  body { padding-top: 150px; }
+  .navbar { gap: 0.6rem; }
+  .navbar-brand { flex-basis: 100%; }
+}
+@media (max-width: 768px) {
+  body { padding-top: 132px; }
+  .navbar-logo { width: 72px; height: 54px; }
+  .navbar-tagline { font-size: 0.7rem; }
 }

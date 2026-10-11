@@ -1,0 +1,13 @@
+[Unit]
+Description=Macmanix dedicated Redis
+
+[Service]
+Type=simple
+WorkingDirectory=/home/peter/TruckSmarter
+ExecStart=/usr/bin/redis-server /home/peter/TruckSmarter/.runtime/redis.conf --daemonize no
+Restart=on-failure
+RestartSec=3
+UMask=0077
+
+[Install]
+WantedBy=default.target
