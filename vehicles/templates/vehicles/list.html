@@ -21,13 +21,27 @@
   <p>Vehículos que combinan potencia, elegancia y tecnología de vanguardia.</p>
 </div>
 
-<form method="get" class="catalog-filters">
-  <label>Buscar <input type="search" name="q" value="{{ request.GET.q }}"></label>
-  <label>Marca <input name="brand" value="{{ request.GET.brand }}"></label>
-  <label>Precio mínimo <input type="number" name="min_price" min="0" step="0.01" value="{{ request.GET.min_price }}"></label>
-  <label>Precio máximo <input type="number" name="max_price" min="0" step="0.01" value="{{ request.GET.max_price }}"></label>
-  <button type="submit" class="btn-outline-gold">Filtrar</button>
-  <a href="{% url 'vehicles:list' %}">Limpiar</a>
+<form method="get" action="{% url 'vehicles:list' %}#catalogo" class="catalog-filters" aria-label="Filtrar vehículos">
+  <label class="catalog-filter catalog-filter-search" for="filter-search">
+    <span>Buscar vehículo</span>
+    <input id="filter-search" type="search" name="q" value="{{ request.GET.q }}" placeholder="Modelo, marca o descripción">
+  </label>
+  <label class="catalog-filter" for="filter-brand">
+    <span>Marca</span>
+    <input id="filter-brand" type="text" name="brand" value="{{ request.GET.brand }}" placeholder="Ej. Toyota">
+  </label>
+  <label class="catalog-filter" for="filter-min-price">
+    <span>Precio mínimo</span>
+    <input id="filter-min-price" type="number" name="min_price" min="0" step="0.01" inputmode="decimal" value="{{ request.GET.min_price }}" placeholder="Desde">
+  </label>
+  <label class="catalog-filter" for="filter-max-price">
+    <span>Precio máximo</span>
+    <input id="filter-max-price" type="number" name="max_price" min="0" step="0.01" inputmode="decimal" value="{{ request.GET.max_price }}" placeholder="Hasta">
+  </label>
+  <div class="catalog-filter-actions">
+    <button type="submit" class="catalog-filter-submit"><i class="fas fa-search" aria-hidden="true"></i> Filtrar</button>
+    <a href="{% url 'vehicles:list' %}#catalogo" class="catalog-filter-clear">Limpiar</a>
+  </div>
 </form>
 <div class="vehicles-grid">
   {% for vehicle in vehicles %}
