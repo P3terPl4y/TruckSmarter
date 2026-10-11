@@ -39,3 +39,7 @@ Black usa línea 88 y objetivo py314, definidos en `pyproject.toml`. Coverage in
 Revisar `git status`, diff y archivos nuevos antes de stage. No incluir `.env`, claves, credenciales Cloudflared, bases, media, logs o `.test-artifacts`. Los ejemplos contienen placeholders, nunca valores reales. Describir en el commit/PR el comportamiento final, validación y límites materiales.
 
 Actualizar README/guía correspondiente cuando cambien rutas, configuración, permisos o despliegue. Conservar los informes de auditoría como evidencia fechada, sin presentar sus cifras históricas como la suite actual. No hacer push, despliegue o acciones externas fuera del alcance autorizado por el propietario.
+
+## Actualizar el servicio activo
+
+El directorio `/home/peter/TruckSmarter` sirve actualmente el despliegue. Preparar y validar nuevas funcionalidades en un checkout separado antes de actualizarlo. Aplicar código y plantillas en una actualización controlada y recargar el servicio; no mantener procesos con rutas antiguas mientras se publican enlaces a rutas nuevas. Para cambios de navegación entre versiones, resolver enlaces opcionales con `{% url ... as variable %}` evita un 500 mientras todavía existe un proceso anterior. Comprobar después las rutas administrativas reales por HTTPS, sin modificar contraseñas de producción para probarlas.

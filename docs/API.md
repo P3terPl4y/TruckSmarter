@@ -32,6 +32,7 @@ Las rutas HTML autentican mediante sesión Django. Los POST requieren CSRF, incl
 | `/dashboard/users/` | GET | Admin; usuarios paginados |
 | `/dashboard/users/create/` | GET, POST | Admin; alta de usuario |
 | `/dashboard/users/<id>/edit/` | GET, POST | Admin; edición de usuario |
+| `/dashboard/users/<id>/password/` | GET, POST | Admin; cambiar contraseña con confirmación y validación; protección staff/superuser |
 | `/dashboard/users/<id>/delete/` | GET, POST | Admin; confirmación y borrado protegido |
 | `/dashboard/brands/` | GET | Admin; marcas paginadas |
 | `/dashboard/brands/create/` | GET, POST | Admin; alta de marca |

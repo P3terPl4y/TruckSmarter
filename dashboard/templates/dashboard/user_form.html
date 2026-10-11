@@ -9,6 +9,12 @@
     <h2><i class="fas fa-{% if object %}edit{% else %}user-plus{% endif %}"></i>
       {% if object %}Editar{% else %}Crear{% endif %} usuario
     </h2>
+    {% if object %}
+    {% url 'dashboard:user_password' object.pk as password_url %}
+    {% if password_url %}
+    <p class="password-link"><a href="{{ password_url }}" class="btn-outline-gold"><i class="fas fa-key" aria-hidden="true"></i> Cambiar contraseña</a></p>
+    {% endif %}
+    {% endif %}
     <form method="post">
       {% csrf_token %}
       <div class="form-group">
@@ -96,6 +102,7 @@
     color: var(--text-secondary);
     margin-bottom: 0.1rem;
   }
+  .password-link { margin-bottom: 1.5rem; }
   .form-actions {
     display: flex;
     gap: 1rem;
@@ -120,7 +127,8 @@
     .form-card {
       padding: 1.5rem;
     }
-    .form-actions {
+    .password-link { margin-bottom: 1.5rem; }
+  .form-actions {
       flex-direction: column;
     }
     .form-actions .btn-hero,

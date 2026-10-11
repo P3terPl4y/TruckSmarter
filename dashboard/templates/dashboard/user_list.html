@@ -36,6 +36,14 @@
             <a href="{% url 'dashboard:user_update' user.pk %}" class="btn-icon" title="Editar">
               <i class="fas fa-pencil-alt"></i>
             </a>
+            {% url 'dashboard:user_password' user.pk as password_url %}
+            {% if password_url %}
+            {% if request.user.is_superuser or not user.is_staff and not user.is_superuser %}
+            <a href="{{ password_url }}" class="btn-icon password-action" title="Cambiar contraseña" aria-label="Cambiar contraseña de {{ user.username }}">
+              <i class="fas fa-key" aria-hidden="true"></i> Contraseña
+            </a>
+            {% endif %}
+            {% endif %}
             <a href="{% url 'dashboard:user_delete' user.pk %}" class="btn-icon danger" title="Eliminar">
               <i class="fas fa-trash"></i>
             </a>
@@ -126,6 +134,8 @@
     background: var(--bg-card-hover);
     color: var(--color-accent);
   }
+  .table-responsive { overflow-x: auto; }
+  .password-action { width: auto; padding: 0 0.6rem; gap: 0.4rem; font-size: 0.8rem; }
   .btn-icon.danger:hover {
     color: #d43737;
     background: rgba(212,55,55,0.1);

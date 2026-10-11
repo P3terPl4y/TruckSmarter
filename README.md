@@ -2,7 +2,7 @@
 
 Plataforma Django para publicar vehículos, negociar ofertas, reservar unidades y consultar métricas. El sitio usa sesiones y formularios HTML; dispone además de una API JWT pequeña para identificar al usuario.
 
-Estado verificado el 11/10/2026: **174 pruebas aprobadas con PostgreSQL y Redis**, incluidas **25 de seguridad**, con **96% de cobertura de líneas y ramas redondeada**. Estos resultados corresponden al código local; no certifican un despliegue de producción.
+Estado verificado el 11/10/2026: **186 pruebas aprobadas con PostgreSQL y Redis**, incluidas **25 de seguridad y 12 del cambio de contraseñas del panel**, con **96% de cobertura de líneas y ramas redondeada**. Estos resultados corresponden al código local; no certifican un despliegue de producción.
 
 Sitio desplegado: **[catalog-macmanix.duohnson.com](https://catalog-macmanix.duohnson.com/)**, mediante Cloudflared hacia el puerto 8800.
 

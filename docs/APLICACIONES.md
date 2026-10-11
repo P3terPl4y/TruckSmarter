@@ -56,6 +56,12 @@ No hay endpoint público de pago o completar compra. `Vehicle.mark_as_sold()` de
 
 Panel comercial protegido por el rol admin/superusuario. Gestiona usuarios, marcas y ofertas con páginas de 25 registros. Crea contraseñas mediante los formularios nativos de hashing/validación. Impide autoeliminación y protege cuentas privilegiadas frente a admins comerciales. Borrar un usuario/marca con historial protegido muestra un mensaje; se recomienda desactivar el usuario. Las decisiones de ofertas usan POST y servicios de `sales`.
 
+### Cambiar contraseñas desde el panel
+
+En **Panel → Usuarios**, el enlace **Contraseña** abre el formulario de nueva contraseña y confirmación. También aparece **Cambiar contraseña** al editar un usuario. Usa SetPasswordForm y los validadores configurados; no muestra la contraseña anterior ni la almacena en texto plano. Un admin comercial solo puede cambiar cuentas no staff/no superusuario; el superusuario puede gestionar las cuentas privilegiadas. La autorización se comprueba otra vez bajo bloqueo al guardar.
+
+La operación requiere POST y CSRF. El cambio invalida las sesiones anteriores del usuario al volver a autenticarse y sus JWT por cambio del hash de autenticación. Si el administrador cambia su propia contraseña, conserva su sesión actual mediante actualización del hash y rotación de sesión. No cambia rol, actividad ni permisos del usuario y no necesita una migración.
+
 ## analytics
 
 `VehicleView` registra vehículo, usuario opcional, sesión y fecha. Solo un GET exitoso de detalle contabiliza visita; no HEAD, POST o 404. Deduplicación de 24 horas por usuario autenticado o sesión anónima, con Redis y respaldo SQL. Dashboard global y estadísticas de unidad son administrativos. `Vehicle.view_count` es un acumulado, mientras `VehicleView` permite consultar periodos.

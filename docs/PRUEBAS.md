@@ -53,7 +53,7 @@ export TEST_REDIS_URL=redis://127.0.0.1:56380/0
 .venv/bin/coverage report
 ```
 
-Resultado actual verificado: 174 aprobados (25 de seguridad), sin omisiones ni comprobaciones silenciadas;
+Resultado actual verificado: 186 aprobados (25 de seguridad y 12 de administración de contraseñas), sin omisiones ni comprobaciones silenciadas;
 96% de cobertura redondeada, incluyendo ramas. El umbral configurado es 85%.
 Las migraciones y las pruebas se ejecutan sobre una base temporal creada y borrada
 por Django. Nunca usar credenciales ni caché de producción para estos comandos.
@@ -110,3 +110,9 @@ Con la configuración de la base a revisar, hacer un respaldo y ejecutar antes d
 `audit_data` no escribe datos. Si informa inconsistencias, revisar los registros
 antes de aplicar restricciones; las migraciones incluyen comprobaciones que
 impiden aceptar duplicados o importes inválidos. Validar primero en staging.
+
+## Contraseñas del panel y compatibilidad de recarga
+
+`dashboard/test_passwords.py` añade 12 casos para permisos, validación, CSRF, revocación, sesión propia y enlaces compatibles con procesos que aún no tengan la ruta nueva. La suite completa más reciente aprobó **186 casos con PostgreSQL/Redis y 96% de cobertura redondeada**. El panel aislado aprobó 26 casos.
+
+La primera repetición encontró falta de cuota en el PostgreSQL de pruebas ubicado en `/tmp`, no un fallo de la base real. La validación final usó un PostgreSQL temporal separado en `.test-artifacts/password-postgres-data`, puerto 55442, con base `trucksmarter_password_tests` y el Redis exclusivo de pruebas en 56380. La instancia PostgreSQL temporal se detuvo al finalizar. Evidencias: `password-postgres-home.txt`, `password-dashboard.txt` y `password-coverage.txt` dentro de `.test-artifacts`.

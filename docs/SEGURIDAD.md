@@ -68,3 +68,11 @@ manage.py test --settings=config.test_settings --noinput
 Los nuevos casos están en `core/test_security.py`: cookies reales de login HTTPS, CSRF ausente/incorrecto/origen ajeno, CORS permitido/denegado, escape XSS y CSP, cargas SQL, PBKDF2 con sales diferentes, abuso e IP falsificada, caída de caché, tamaños inválidos, JWT alterado/sin firma/caducado/con claims incorrectos, revocación, caducidad y limpieza de grants, límite de emisión, y aislamiento de clientes y cabeceras detrás de Cloudflared.
 
 Las pruebas normales usan MD5 únicamente para acelerar sus fixtures; la prueba criptográfica activa PBKDF2-SHA256 explícitamente y producción configura exclusivamente ese hasher. Esto no es un pentest exhaustivo ni una medición de capacidad. No se ha ejecutado un escáner de dependencias CVE ni un navegador para evaluar visualmente CSP.
+
+## Cambio de contraseñas en el panel
+
+`/dashboard/users/<id>/password/` permite a administradores autorizados establecer una contraseña con confirmación mediante SetPasswordForm. Conserva los validadores y hashing nativos, protege CSRF, evita caché de respuestas y marca los campos de contraseña como sensibles para los informes de errores. La operación bloquea la fila y vuelve a comprobar la protección de staff/superusuarios antes de guardar. Los campos adicionales enviados no pueden cambiar privilegios. La sesión propia se mantiene si el actor cambia su contraseña; las sesiones previas de otros dispositivos y los JWT dejan de autenticar con el hash anterior.
+
+Doce pruebas nuevas en `dashboard/test_passwords.py` cubren permisos GET/POST, cuentas protegidas, confirmación/fortaleza, hashing, campos ajenos, CSRF, enlaces, objeto inexistente, sesión propia y revocación de sesión/JWT. Incluyen una regresión que mantiene el listado y la edición accesibles cuando un proceso aún no ha cargado la ruta nueva. Ninguna contraseña operativa ni prueba modifica la cuenta real del administrador durante la validación.
+
+Validación posterior de esta ampliación: **186 pruebas aprobadas con PostgreSQL/Redis**, sin omisiones ni checks silenciados, y **96% de cobertura de líneas y ramas redondeada**. El apartado de resultados anterior conserva la ejecución del refuerzo inicial de 174 casos. Los errores Django de producción se envían ahora al logger de consola del servicio, con stack trace y sin volcar cuerpos de formularios.

@@ -1,12 +1,19 @@
 from django.contrib import messages
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, update_session_auth_hash
+from django.contrib.auth.forms import SetPasswordForm
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models.deletion import ProtectedError
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
+from django.utils.decorators import method_decorator
+from django.utils.functional import cached_property
+from django.views.decorators.cache import never_cache
+from django.views.decorators.debug import sensitive_post_parameters
 from django.urls import reverse_lazy
 from django.views.generic import (
     CreateView,
     DeleteView,
+    FormView,
     ListView,
     TemplateView,
     UpdateView,
@@ -42,6 +49,45 @@ class UserCreateView(AdminRequiredMixin, CreateView):
 
 class UserUpdateView(BaseUserUpdateView):
     success_url = reverse_lazy("dashboard:user_list")
+
+
+@method_decorator(never_cache, name="dispatch")
+@method_decorator(
+    sensitive_post_parameters("new_password1", "new_password2"), name="dispatch"
+)
+class UserPasswordChangeView(AdminRequiredMixin, FormView):
+    form_class = SetPasswordForm
+    template_name = "dashboard/user_password_form.html"
+    success_url = reverse_lazy("dashboard:user_list")
+
+    def target_queryset(self):
+        users = User.objects.all()
+        if not self.request.user.is_superuser:
+            users = users.filter(is_staff=False, is_superuser=False)
+        return users
+
+    @cached_property
+    def target_user(self):
+        return get_object_or_404(self.target_queryset(), pk=self.kwargs["pk"])
+
+    def get_form_kwargs(self):
+        return {**super().get_form_kwargs(), "user": self.target_user}
+
+    def get_context_data(self, **kwargs):
+        return {**super().get_context_data(**kwargs), "target_user": self.target_user}
+
+    @transaction.atomic
+    def form_valid(self, form):
+        # Recheck privileged-account protection while holding the target row lock.
+        user = get_object_or_404(
+            self.target_queryset().select_for_update(), pk=self.target_user.pk
+        )
+        form.user = user
+        form.save()
+        if user.pk == self.request.user.pk:
+            update_session_auth_hash(self.request, user)
+        messages.success(self.request, f"Contraseña de {user.username} actualizada.")
+        return super().form_valid(form)
 
 
 class UserDeleteView(AdminRequiredMixin, DeleteView):
