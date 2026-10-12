@@ -56,4 +56,4 @@ Primero se valida el peer Cloudflared si está habilitado; después se ejecutan 
 
 ## Límites actuales
 
-No hay pagos, facturación, mensajería, API CRUD general, refresh JWT ni trabajos asíncronos. `VehicleImage` admite galería en datos/admin, pero no existe una API pública de gestión de galería. La infraestructura Cloudflare, el servicio de media, las copias programadas y la entrega SMTP se validan durante despliegue, no con la suite de unidades.
+No hay pagos, facturación, mensajería, API CRUD general, refresh JWT ni trabajos asíncronos. `VehicleImage` admite galería en datos/admin, pero no existe una API pública de gestión de galería. La infraestructura Cloudflare, las copias programadas y la entrega SMTP se validan durante despliegue, no con la suite de unidades.

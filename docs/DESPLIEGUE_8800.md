@@ -54,7 +54,7 @@ Para crear la primera cuenta administrativa, usar el asistente sin guardar contr
 .venv/bin/python manage.py createsuperuser
 ```
 
-El correo está configurado con backend de consola porque no se proporcionaron credenciales SMTP. Configurar SMTP antes de ofrecer verificación por correo a usuarios reales. La entrega de media en producción sigue siendo una decisión pendiente descrita en [OPERACION.md](OPERACION.md); el logo es un estático y se sirve correctamente mediante WhiteNoise.
+El correo está configurado con backend de consola porque no se proporcionaron credenciales SMTP. Configurar SMTP antes de ofrecer verificación por correo a usuarios reales. La entrega de imágenes de media está habilitada en Django y descrita en [OPERACION.md](OPERACION.md); el logo es un estático servido mediante WhiteNoise.
 
 ## Validación
 

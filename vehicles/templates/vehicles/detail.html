@@ -8,7 +8,7 @@
   <!-- Columna izquierda: Imagen -->
   <div class="detail-image">
     {% if vehicle.main_image %}
-      <img src="{{ vehicle.main_image.url }}" alt="{{ vehicle }}" />
+      <img src="{{ vehicle.main_image.url }}?v=media1-{{ vehicle.updated_at|date:'U' }}" alt="{{ vehicle }}" />
     {% else %}
       <img src="{% static 'img/no-image.svg' %}" alt="Sin imagen" />
     {% endif %}
@@ -107,7 +107,7 @@
     {% endif %}
 
     {% for photo in vehicle.images.all %}
-      <img src="{{ photo.image.url }}" alt="{{ vehicle }} — imagen {{ forloop.counter }}" loading="lazy" style="max-width:100%">
+      <img src="{{ photo.image.url }}?v=media1-{{ vehicle.updated_at|date:'U' }}" alt="{{ vehicle }} — imagen {{ forloop.counter }}" loading="lazy" style="max-width:100%">
     {% endfor %}
     <!-- Tarjeta del vendedor (siempre visible) -->
     <div class="seller-card">

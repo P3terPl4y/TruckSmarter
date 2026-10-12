@@ -71,6 +71,6 @@ SQLite omite los cuatro casos que requieren bloqueo real de PostgreSQL. Para dem
 
 ## Producción
 
-El acceso público previsto es **Cloudflare Tunnel → Cloudflared → Gunicorn → Django**, con el origen privado. El middleware solo confía en cabeceras del túnel desde peers explícitos. No se utiliza Nginx. WhiteNoise sirve estáticos; la entrega de media requiere resolver la ruta de archivos de producción, descrita como pendiente en la guía operativa.
+El acceso público previsto es **Cloudflare Tunnel → Cloudflared → Gunicorn → Django**, con el origen privado. El middleware solo confía en cabeceras del túnel desde peers explícitos. No se utiliza Nginx. WhiteNoise sirve estáticos; Django entrega las imágenes públicas de vehicles y brands en /media/, incluso con DEBUG=False, sin Nginx.
 
 JWT permanece deshabilitado hasta configurar una clave independiente válida. Las contraseñas usan PBKDF2-SHA256 con sal; SHA-256 es una función hash, no cifrado. No subir `.env`, credenciales del túnel, claves privadas, respaldos ni archivos de usuarios a Git.

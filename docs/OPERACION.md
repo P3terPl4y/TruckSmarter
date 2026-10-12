@@ -54,7 +54,7 @@ Para un servicio sin Docker:
 
 Configurar el supervisor/systemd propio del servidor para arranque y reinicio. Enlazar al origen privado, habilitar `CLOUDFLARED_ENABLED=True` y configurar los peers exactos como explica [SEGURIDAD.md](SEGURIDAD.md). El middleware valida el origen de las cabeceras antes de restaurar IP/protocolo. En Docker la IP vista puede ser la pasarela y debe confirmarse en el entorno real.
 
-WhiteNoise sirve los estáticos recolectados. **La ruta de media no está implementada como servidor de archivos en producción**: con DEBUG=False Django no añade las rutas de desarrollo. Antes de publicar imágenes, configurar el almacenamiento/servicio de media elegido y su ruta en Cloudflare; no asumir que WhiteNoise sirve uploads. No se ha introducido Nginx ni un servicio alternativo sin conocer esa decisión operativa.
+WhiteNoise sirve los estáticos recolectados. Django entrega /media/vehicles/ y /media/brands/ mediante FileResponse con DEBUG=False. Solo permite GET/HEAD, comprueba el formato raster real (JPEG, PNG, GIF, WebP o ICO), rechaza rutas fuera de MEDIA_ROOT y enlaces simbólicos externos, y añade nosniff y caché pública de cinco minutos. No permite listar directorios ni entregar HTML/SVG. Cloudflared conserva la ruta hacia Gunicorn en 8800; no se utiliza Nginx. Para grandes volúmenes, migrar a almacenamiento de objetos/CDN. Verificación: cuatro pruebas en core/test_media.py.
 
 Validar por el dominio real: login/logout, formulario CSRF, edición de perfil, publicación con imagen, reserva/oferta, panel y métricas. Confirmar Secure/HttpOnly/SameSite, CSP y HTTPS sin bucles. No habilitar caché pública indiscriminada para HTML personalizado, admin o API de tokens.
 
@@ -107,3 +107,5 @@ Revisar versiones y vulnerabilidades antes de actualizar, actualizar constraints
 | Fallos temporales por cuota | TMPDIR en un directorio de trabajo con espacio/cuota suficiente |
 
 Los logs de la aplicación registran fallos de notificación y caché. No registrar contraseñas, tokens, cabeceras Authorization ni credenciales del túnel. `check --deploy` ayuda a revisar settings, pero no demuestra aislamiento del origen, reglas WAF ni configuración real de Cloudflare.
+
+Las plantillas versionan las URLs de imágenes con `v=media1` y la fecha de actualización del vehículo para evitar los 404 previamente cacheados por Cloudflare. Una URL antigua sin versión puede conservar el 404 hasta que expire su caché o se purgue en Cloudflare.

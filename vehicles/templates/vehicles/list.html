@@ -48,7 +48,7 @@
     <div class="card-vehicle">
       <div class="card-img-wrapper">
         {% if vehicle.main_image %}
-          <img src="{{ vehicle.main_image.url }}" alt="{{ vehicle }}" />
+          <img src="{{ vehicle.main_image.url }}?v=media1-{{ vehicle.updated_at|date:'U' }}" alt="{{ vehicle }}" />
         {% else %}
           <img src="{% static 'img/no-image.svg' %}" alt="Sin imagen" />
         {% endif %}

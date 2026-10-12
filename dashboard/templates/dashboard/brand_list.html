@@ -28,7 +28,7 @@
           <td><strong>{{ brand.name }}</strong></td>
           <td>
             {% if brand.logo %}
-              <img src="{{ brand.logo.url }}" alt="{{ brand.name }}" style="height:30px; width:auto;">
+              <img src="{{ brand.logo.url }}?v=media1" alt="{{ brand.name }}" style="height:30px; width:auto;">
             {% else %}
               <span class="text-muted">Sin logo</span>
             {% endif %}
